@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "274676331705",
+    "firebase_url": "https://ssary-83359-default-rtdb.firebaseio.com",
+    "project_id": "ssary-83359",
+    "storage_bucket": "ssary-83359.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:274676331705:android:d9c159462d183eb79d9768",
+        "android_client_info": {
+          "package_name": "com.example.ssary"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDI0vjDS4lXU9ObPO1N5zusDiNW9qFUJuM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
