@@ -13,9 +13,9 @@
         android:theme="@style/Theme.SSARY"
         tools:targetApi="31">
 
-        <!-- SignupActivity를 첫 화면으로 설정 -->
+        <!-- LoginActivity를 첫 화면으로 설정 -->
         <activity
-            android:name=".SignupActivity"
+            android:name=".LoginActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.SSARY">
@@ -30,7 +30,14 @@
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.SSARY" />
+            android:theme="@style/Theme.SSARY"/>
+
+        <!-- SignupActivity 등록 -->
+        <activity android:name=".SignupActivity" />
+
+        <!-- !씨발 중요! -->
+        <!-- 모든 자바 클래스 Activity는 아래 코드를 반드시 디폴트로 입력해주세요. -->
+        <!--<activity android:name=".Activity" />-->
 
     </application>
 </manifest>
