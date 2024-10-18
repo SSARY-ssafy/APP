@@ -2,86 +2,98 @@ package com.example.ssary;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
+
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthUserCollisionException;
+import com.google.firebase.auth.FirebaseUser;
 
 public class SignupActivity extends AppCompatActivity {
 
-    private FirebaseFirestore db;
+    private FirebaseAuth auth;
+    private EditText signName, signNickName, signmail, signPW, signPW2, signPhone, signBirth, signBirth2, signBirth3;
+    private Button signupButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_signup);
 
-        db = FirebaseFirestore.getInstance(); // Firestore 초기화
+        // Firebase Auth 초기화
+        auth = FirebaseAuth.getInstance();
 
-        // UI 요소 참조
-        EditText passwordEditText = findViewById(R.id.signPW);
-        EditText confirmPasswordEditText = findViewById(R.id.signPW2);
-        EditText nicknameEditText = findViewById(R.id.signNickName);
-        EditText nameEditText = findViewById(R.id.signName);
-        EditText phoneEditText = findViewById(R.id.signPhone);
-        EditText mailText = findViewById(R.id.signmail);
-        Button confirmButton = findViewById(R.id.pwcheckbutton);
-        Button signupButton = findViewById(R.id.signupbutton);
+        // UI 요소 초기화
+        signName = findViewById(R.id.signName);
+        signNickName = findViewById(R.id.signNickName);
+        signmail = findViewById(R.id.signmail);
+        signPW = findViewById(R.id.signPW);
+        signPW2 = findViewById(R.id.signPW2);
+        signPhone = findViewById(R.id.signPhone);
+        signBirth = findViewById(R.id.signBirth);
+        signBirth2 = findViewById(R.id.signBirth2);
+        signBirth3 = findViewById(R.id.signBirth3);
+        signupButton = findViewById(R.id.signupbutton);
 
-        // 비밀번호 확인 버튼 클릭 이벤트
-        confirmButton.setOnClickListener(v -> {
-            String password = passwordEditText.getText().toString();
-            String confirmPassword = confirmPasswordEditText.getText().toString();
-
-            if (password.equals(confirmPassword)) {
-                Toast.makeText(SignupActivity.this, "비밀번호가 일치합니다.", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(SignupActivity.this, "비밀번호가 일치하지 않습니다.", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        // 회원가입 버튼 클릭 이벤트
+        // 회원가입 버튼 클릭 리스너
         signupButton.setOnClickListener(v -> {
-            String email = mailText.getText().toString().trim();
-            String password = passwordEditText.getText().toString().trim();
-            String name = nameEditText.getText().toString();
-            String nickname = nicknameEditText.getText().toString();
-            String phone = phoneEditText.getText().toString();
-
-            // 입력 데이터 검증
-            if (name.isEmpty() || phone.isEmpty() || password.isEmpty() || email.isEmpty()) {
-                Toast.makeText(SignupActivity.this, "모든 필드를 입력하세요!", Toast.LENGTH_SHORT).show();
-                return;
+            String email = signmail.getText().toString();
+            String password = signPW.getText().toString();
+            String confirmPassword = signPW2.getText().toString();
+            if (validateInput(email, password, confirmPassword)) {
+                createAccount(email, password);
             }
-
-            // Firestore에 사용자 데이터 저장
-            User user = new User(name, nickname, phone, password, email);
-            db.collection("Users").document(email).set(user)
-                    .addOnCompleteListener(task -> {
-                        if (task.isSuccessful()) {
-                            Toast.makeText(SignupActivity.this, "회원가입이 완료되었습니다!", Toast.LENGTH_SHORT).show();
-                            // 로그인 화면으로 이동
-                            startActivity(new Intent(SignupActivity.this, LoginActivity.class));
-                            finish();
-                        } else {
-                            Toast.makeText(SignupActivity.this, "회원가입 실패: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
-                        }
-                    });
         });
     }
 
-    // Firestore에 저장할 User 클래스
-    public static class User {
-        public String name, nickname, phone, password, email;
-
-        public User(String name, String nickname, String phone, String password, String email) {
-            this.name = name;
-            this.nickname = nickname;
-            this.phone = phone;
-            this.password = password; // 저장된 비밀번호 (해싱하지 않고 저장하는 경우)
-            this.email = email;
+    // 입력값 검증
+    private boolean validateInput(String email, String password, String confirmPassword) {
+        if (TextUtils.isEmpty(email)) {
+            Toast.makeText(this, "이메일을 입력해 주세요.", Toast.LENGTH_SHORT).show();
+            return false;
         }
+        if (TextUtils.isEmpty(password)) {
+            Toast.makeText(this, "비밀번호를 입력해 주세요.", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        if (!password.equals(confirmPassword)) {
+            Toast.makeText(this, "비밀번호가 일치하지 않습니다.", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        return true;
+    }
+
+    // Firebase를 사용한 계정 생성
+    private void createAccount(String email, String password) {
+        auth.createUserWithEmailAndPassword(email, password)
+                .addOnCompleteListener(this, new OnCompleteListener<com.google.firebase.auth.AuthResult>() {
+                    @Override
+                    public void onComplete(@NonNull Task<com.google.firebase.auth.AuthResult> task) {
+                        if (task.isSuccessful()) {
+                            // 계정 생성 성공
+                            FirebaseUser user = auth.getCurrentUser();
+                            Toast.makeText(SignupActivity.this, "계정 생성 완료.", Toast.LENGTH_SHORT).show();
+
+                            // 회원가입 성공 후 로그인 페이지로 이동
+                            Intent intent = new Intent(SignupActivity.this, LoginActivity.class);
+                            startActivity(intent);
+                            finish(); // 현재 SignupActivity 종료
+                        } else {
+                            // 계정 생성 실패
+                            if (task.getException() instanceof FirebaseAuthUserCollisionException) {
+                                Toast.makeText(SignupActivity.this, "이미 존재하는 이메일입니다.", Toast.LENGTH_SHORT).show();
+                            } else {
+                                Toast.makeText(SignupActivity.this, "계정 생성 실패.", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    }
+                });
     }
 }
