@@ -15,10 +15,14 @@ import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthUserCollisionException;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.FirebaseFirestore;
+
+import java.util.*;
 
 public class SignupActivity extends AppCompatActivity {
 
     private FirebaseAuth auth;
+    private FirebaseFirestore firestore; // Firestore 인스턴스
     private EditText signName, signNickName, signmail, signPW, signPW2, signPhone, signBirth, signBirth2, signBirth3;
     private Button signupButton;
 
@@ -29,6 +33,7 @@ public class SignupActivity extends AppCompatActivity {
 
         // Firebase Auth 초기화
         auth = FirebaseAuth.getInstance();
+        firestore = FirebaseFirestore.getInstance();
 
         // UI 요소 초기화
         signName = findViewById(R.id.signName);
@@ -81,6 +86,9 @@ public class SignupActivity extends AppCompatActivity {
                             FirebaseUser user = auth.getCurrentUser();
                             Toast.makeText(SignupActivity.this, "계정 생성 완료.", Toast.LENGTH_SHORT).show();
 
+                            // 파이어스토어에 저장
+                            saveUserInfo(user);
+
                             // 회원가입 성공 후 로그인 페이지로 이동
                             Intent intent = new Intent(SignupActivity.this, LoginActivity.class);
                             startActivity(intent);
@@ -96,4 +104,27 @@ public class SignupActivity extends AppCompatActivity {
                     }
                 });
     }
+
+    private void saveUserInfo(FirebaseUser user) {
+        if (user != null) {
+            Map<String, Object> userInfo = new HashMap<>();
+            userInfo.put("name", signName.getText().toString());
+            userInfo.put("nickname", signNickName.getText().toString());
+            userInfo.put("email", signmail.getText().toString());
+            userInfo.put("phone", signPhone.getText().toString());
+            userInfo.put("birthDate", signBirth.getText().toString() + "-" +
+                    signBirth2.getText().toString() + "-" +
+                    signBirth3.getText().toString());
+
+            firestore.collection("users").document(user.getUid())
+                    .set(userInfo)
+                    .addOnSuccessListener(aVoid -> {
+                        Toast.makeText(SignupActivity.this, "사용자 정보 저장 완료.", Toast.LENGTH_SHORT).show();
+                    })
+                    .addOnFailureListener(e -> {
+                        Toast.makeText(SignupActivity.this, "사용자 정보 저장 실패.", Toast.LENGTH_SHORT).show();
+                    });
+        }
+    }
+
 }

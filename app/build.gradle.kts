@@ -75,5 +75,6 @@ dependencies {
 
     implementation("com.google.firebase:firebase-analytics")
     implementation(platform("com.google.firebase:firebase-bom:33.4.0"))
-
+    implementation("com.google.firebase:firebase-firestore-ktx:25.1.0")
+    implementation("com.google.firebase:firebase-analytics-ktx:22.1.2")
 }

@@ -3,6 +3,7 @@ package com.example.ssary;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
@@ -19,7 +20,7 @@ public class LoginActivity extends AppCompatActivity {
 
     private FirebaseAuth auth;
     private EditText loginEmail, loginPassword;
-    private Button loginButton, signupButton;
+    private Button loginButton, signupButton,searchIdButton,searchPwButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,6 +35,7 @@ public class LoginActivity extends AppCompatActivity {
         loginPassword = findViewById(R.id.loginPassword);
         loginButton = findViewById(R.id.loginButton);
         signupButton = findViewById(R.id.signin); // 회원가입 버튼
+        searchPwButton = findViewById(R.id.pw);
 
         // 로그인 버튼 클릭 리스너
         loginButton.setOnClickListener(v -> {
@@ -45,6 +47,12 @@ public class LoginActivity extends AppCompatActivity {
         });
 
         // 회원가입 버튼 클릭 리스너
+        signupButton.setOnClickListener(v -> {
+            Intent intent = new Intent(LoginActivity.this, SignupActivity.class);
+            startActivity(intent);
+        });
+
+        // 비밀번호 변경 버튼
         signupButton.setOnClickListener(v -> {
             Intent intent = new Intent(LoginActivity.this, SignupActivity.class);
             startActivity(intent);
