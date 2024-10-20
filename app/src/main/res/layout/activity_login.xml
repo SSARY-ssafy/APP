@@ -58,13 +58,24 @@
             android:textSize="16sp"
             android:textStyle="bold" />
 
-        <TextView
-            android:id="@+id/idpw"
+        <Button
+            android:id="@+id/id"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:layout_marginTop="10dp"
-            android:text="ID/Pw 찾기"
+            android:text="ID 찾기"
+            android:textColor="@color/black"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/pw"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginTop="10dp"
+            android:text="Pw 찾기"
             android:textColor="@color/black"
             android:textSize="15sp"
             android:textStyle="bold" />
@@ -73,8 +84,8 @@
             android:id="@+id/signin"
             android:layout_width="200dp"
             android:layout_height="50dp"
-            android:layout_marginTop="10dp"
             android:layout_gravity="center"
+            android:layout_marginTop="10dp"
             android:background="@android:color/transparent"
             android:text="회원가입"
             android:textAlignment="center"

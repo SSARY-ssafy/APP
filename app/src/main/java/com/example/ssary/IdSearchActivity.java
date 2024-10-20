@@ -1,0 +1,189 @@
+package com.example.ssary;
+
+import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextUtils;
+import android.text.TextWatcher;
+import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.QuerySnapshot;
+
+public class IdSearchActivity extends AppCompatActivity {
+
+    private EditText editName, editBirth, editPhone;
+    private Button searchIdButton;
+    private FirebaseFirestore db;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_id_search);
+
+        // Firestore 초기화
+        db = FirebaseFirestore.getInstance();
+
+        // UI 요소 초기화
+        editName = findViewById(R.id.editname);
+        editBirth = findViewById(R.id.editbirth);
+        editPhone = findViewById(R.id.editphone); // 핸드폰 번호
+        searchIdButton = findViewById(R.id.search_ID);
+
+        // 생년월일 입력 포맷팅 예를 들어, DB 포맷팅이 YYYY-MM-DD 이기 때문에 입력 포맷을 1998-03-07로 변경한다.
+        editBirth.addTextChangedListener(new TextWatcher() {
+            private boolean isFormatting;
+
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                // Nothing to do here
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                // Nothing to do here
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                if (isFormatting) return;
+
+                String input = s.toString().replaceAll("[^\\d]", ""); // 숫자만 남기기
+                isFormatting = true;
+
+                StringBuilder formatted = new StringBuilder();
+                if (input.length() > 0) {
+                    formatted.append(input.substring(0, Math.min(input.length(), 4))); // 연도
+                }
+                if (input.length() >= 5) {
+                    formatted.append("-").append(input.substring(4, Math.min(input.length(), 6))); // 월
+                }
+                if (input.length() >= 7) {
+                    formatted.append("-").append(input.substring(6, Math.min(input.length(), 8))); // 일
+                }
+
+                editBirth.setText(formatted.toString());
+                editBirth.setSelection(formatted.length()); // 커서 위치 조정
+                isFormatting = false;
+
+//                Log.d("IdSearchActivity", editBirth.getText().toString());
+            }
+
+        });
+        // 전화번호 입력 포맷팅 예를 들어, DB 포맷팅이 01012345678으로 되어있는데, 입력 포맷을 010-1234-5678로 변경할 수 있다.
+        // 나중에 DB 포맷팅을 변경하면 좋을 것 같다.
+//        editPhone.addTextChangedListener(new TextWatcher() {
+//            private boolean isFormatting;
+//
+//            @Override
+//            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+//                // Nothing to do here
+//            }
+//
+//            @Override
+//            public void onTextChanged(CharSequence s, int start, int before, int count) {
+//                // Nothing to do here
+//            }
+//
+//            @Override
+//            public void afterTextChanged(Editable s) {
+//                if (isFormatting) return;
+//
+//                String input = s.toString().replaceAll("[^\\d]", ""); // 숫자만 남기기
+//                isFormatting = true;
+//
+//                StringBuilder formatted = new StringBuilder();
+//                if (input.length() > 0) {
+//                    formatted.append(input.substring(0, Math.min(input.length(), 3))); // 010
+//                }
+//                if (input.length() >= 4) {
+//                    formatted.append("-").append(input.substring(3, Math.min(input.length(), 7))); // 번호2
+//                }
+//                if (input.length() >= 8) {
+//                    formatted.append("-").append(input.substring(7, Math.min(input.length(), 11))); // 번호3
+//                }
+//
+//                editPhone.setText(formatted.toString());
+//                editPhone.setSelection(formatted.length()); // 커서 위치 조정
+//                isFormatting = false;
+//
+////                Log.d("IdSearchActivity", editBirth.getText().toString());
+//            }
+//
+//        });
+
+        // 아이디 찾기 버튼 클릭 리스너
+        searchIdButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String name = editName.getText().toString();
+                String birth = editBirth.getText().toString();
+
+
+
+                String phone = editPhone.getText().toString();
+
+                if (validateInput(name, birth, phone)) {
+                    findUserId(name, birth, phone);
+                }
+            }
+        });
+    }
+
+    // 입력값 검증
+    private boolean validateInput(String name, String birth, String phone) {
+        if (TextUtils.isEmpty(name)) {
+            Toast.makeText(this, "이름을 입력해 주세요.", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        if (TextUtils.isEmpty(birth)) {
+            Toast.makeText(this, "생년월일을 입력해 주세요.", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        if (TextUtils.isEmpty(phone)) {
+            Toast.makeText(this, "핸드폰 번호를 입력해 주세요.", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        return true;
+    }
+
+    // Firestore에서 사용자 정보 검색
+    private void findUserId(String name, String birth, String phone) {
+        db.collection("users")
+                .whereEqualTo("name", name)
+                .whereEqualTo("birthDate", birth)
+                .whereEqualTo("phone", phone)
+                .limit(1) // 조건에 맞는 사용자 한 명만 검색
+                .get()
+                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+                    @Override
+                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
+                        if (task.isSuccessful() && !task.getResult().isEmpty()) {
+                            // 사용자 정보가 존재하면 이메일을 보여줌
+                            DocumentSnapshot document = task.getResult().getDocuments().get(0);
+                            String email = document.getString("email");
+                            Toast.makeText(IdSearchActivity.this, "사용자의 이메일: " + email, Toast.LENGTH_LONG).show();
+                        } else {
+                            // 사용자 정보가 없는 경우
+                            Toast.makeText(IdSearchActivity.this, "해당 정보로 등록된 사용자를 찾을 수 없습니다.", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.w("Firestore", "사용자 정보 검색 실패", e);
+                    Toast.makeText(IdSearchActivity.this, "오류가 발생했습니다. 다시 시도해 주세요.", Toast.LENGTH_SHORT).show();
+                });
+    }
+
+
+}
