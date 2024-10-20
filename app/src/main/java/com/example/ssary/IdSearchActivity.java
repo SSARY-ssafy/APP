@@ -5,38 +5,40 @@ import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.Log;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import com.google.firebase.auth.FirebaseAuth;
+
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.QueryDocumentSnapshot;
+import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QuerySnapshot;
 
-public class PwSearchActivity extends AppCompatActivity {
-    private FirebaseAuth auth;
+public class IdSearchActivity extends AppCompatActivity {
+
+    private EditText editName, editBirth, editPhone;
+    private Button searchIdButton;
     private FirebaseFirestore db;
-    private EditText editMail, editName, editBirth, editPhone;
-    private Button searchPWButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_pw_search); // layout 파일 이름으로 변경
+        setContentView(R.layout.activity_id_search);
 
-        // FirebaseAuth 및 Firestore 인스턴스 초기화
-        auth = FirebaseAuth.getInstance();
+        // Firestore 초기화
         db = FirebaseFirestore.getInstance();
 
         // UI 요소 초기화
-        editMail = findViewById(R.id.editmail);
         editName = findViewById(R.id.editname);
         editBirth = findViewById(R.id.editbirth);
-        editPhone = findViewById(R.id.editphone);
-        searchPWButton = findViewById(R.id.search_PW);
+        editPhone = findViewById(R.id.editphone); // 핸드폰 번호
+        searchIdButton = findViewById(R.id.search_ID);
 
         // 생년월일 입력 포맷팅 예를 들어, DB 포맷팅이 YYYY-MM-DD 이기 때문에 입력 포맷을 1998-03-07로 변경한다.
         editBirth.addTextChangedListener(new TextWatcher() {
@@ -120,54 +122,68 @@ public class PwSearchActivity extends AppCompatActivity {
 //
 //        });
 
-        // 비밀번호 찾기 버튼 클릭 리스너
-        searchPWButton.setOnClickListener(v -> {
-            String email = editMail.getText().toString().trim();
-            String name = editName.getText().toString().trim();
-            String birth = editBirth.getText().toString().trim();
-            String phone = editPhone.getText().toString().trim();
+        // 아이디 찾기 버튼 클릭 리스너
+        searchIdButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String name = editName.getText().toString();
+                String birth = editBirth.getText().toString();
 
-            // 입력값 검증
-            if (TextUtils.isEmpty(email)) {
-                Toast.makeText(this, "이메일을 입력해 주세요.", Toast.LENGTH_SHORT).show();
-            } else if (TextUtils.isEmpty(name)) {
-                Toast.makeText(this, "이름을 입력해 주세요.", Toast.LENGTH_SHORT).show();
-            } else if (TextUtils.isEmpty(birth)) {
-                Toast.makeText(this, "생년월일을 입력해 주세요.", Toast.LENGTH_SHORT).show();
-            } else if (TextUtils.isEmpty(phone)) {
-                Toast.makeText(this, "핸드폰번호를 입력해 주세요.", Toast.LENGTH_SHORT).show();
-            } else {
-                checkUserDetails(email, name, birth, phone);
+
+
+                String phone = editPhone.getText().toString();
+
+                if (validateInput(name, birth, phone)) {
+                    findUserId(name, birth, phone);
+                }
             }
         });
     }
 
-    private void checkUserDetails(String email, String name, String birth, String phone) {
-        // Firestore에서 사용자 정보 조회
+    // 입력값 검증
+    private boolean validateInput(String name, String birth, String phone) {
+        if (TextUtils.isEmpty(name)) {
+            Toast.makeText(this, "이름을 입력해 주세요.", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        if (TextUtils.isEmpty(birth)) {
+            Toast.makeText(this, "생년월일을 입력해 주세요.", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        if (TextUtils.isEmpty(phone)) {
+            Toast.makeText(this, "핸드폰 번호를 입력해 주세요.", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+        return true;
+    }
+
+    // Firestore에서 사용자 정보 검색
+    private void findUserId(String name, String birth, String phone) {
         db.collection("users")
-                .whereEqualTo("email", email)
                 .whereEqualTo("name", name)
-                .whereEqualTo("birthDate", birth) // 생년월일 필드 이름에 맞추어 수정
+                .whereEqualTo("birthDate", birth)
                 .whereEqualTo("phone", phone)
                 .limit(1) // 조건에 맞는 사용자 한 명만 검색
                 .get()
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful() && !task.getResult().isEmpty()) {
-                        // 사용자 정보가 존재하면 이메일을 보여줌
-                        DocumentSnapshot document = task.getResult().getDocuments().get(0);
-                        String foundEmail = document.getString("email");
-                        Toast.makeText(this, "비밀번호 재설정 이메일을 보냈습니다.", Toast.LENGTH_SHORT).show();
-                        // 비밀번호 재설정 이메일 전송
-                        auth.sendPasswordResetEmail(foundEmail);
-                    } else {
-                        // 사용자 정보가 없는 경우
-                        Toast.makeText(this, "해당 정보로 등록된 사용자를 찾을 수 없습니다.", Toast.LENGTH_SHORT).show();
+                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+                    @Override
+                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
+                        if (task.isSuccessful() && !task.getResult().isEmpty()) {
+                            // 사용자 정보가 존재하면 이메일을 보여줌
+                            DocumentSnapshot document = task.getResult().getDocuments().get(0);
+                            String email = document.getString("email");
+                            Toast.makeText(IdSearchActivity.this, "사용자의 이메일: " + email, Toast.LENGTH_LONG).show();
+                        } else {
+                            // 사용자 정보가 없는 경우
+                            Toast.makeText(IdSearchActivity.this, "해당 정보로 등록된 사용자를 찾을 수 없습니다.", Toast.LENGTH_SHORT).show();
+                        }
                     }
                 })
                 .addOnFailureListener(e -> {
                     Log.w("Firestore", "사용자 정보 검색 실패", e);
-                    Toast.makeText(this, "오류가 발생했습니다. 다시 시도해 주세요.", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(IdSearchActivity.this, "오류가 발생했습니다. 다시 시도해 주세요.", Toast.LENGTH_SHORT).show();
                 });
     }
+
 
 }

@@ -73,12 +73,12 @@
             android:layout_marginTop="0dp"
 
             android:ems="10"
-            android:hint=" 생년월일"
-            android:inputType="textPassword"
+            android:hint=" 생년월일(YYYY-MM-DD)"
+            android:inputType="date"
             android:background="@drawable/edittext_background"/>
 
         <EditText
-            android:id="@+id/editmail"
+            android:id="@+id/editphone"
             android:layout_width="389dp"
             android:layout_height="57dp"
             android:layout_gravity="center"
