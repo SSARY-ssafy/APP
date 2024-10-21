@@ -20,11 +20,16 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QuerySnapshot;
 
+import android.view.View;
+import android.widget.ImageView;
+
 public class IdSearchActivity extends AppCompatActivity {
 
     private EditText editName, editBirth, editPhone;
     private Button searchIdButton;
     private FirebaseFirestore db;
+
+    private ImageView backButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,6 +44,16 @@ public class IdSearchActivity extends AppCompatActivity {
         editBirth = findViewById(R.id.editbirth);
         editPhone = findViewById(R.id.editphone); // 핸드폰 번호
         searchIdButton = findViewById(R.id.search_ID);
+
+        backButton = findViewById(R.id.back); // 뒤로 가기 버튼 초기화
+
+        // 뒤로 가기 버튼 클릭 리스너 추가
+        backButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                onBackPressed(); // 뒤로 가기 기능
+            }
+        });
 
         // 생년월일 입력 포맷팅 예를 들어, DB 포맷팅이 YYYY-MM-DD 이기 때문에 입력 포맷을 1998-03-07로 변경한다.
         editBirth.addTextChangedListener(new TextWatcher() {

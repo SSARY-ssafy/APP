@@ -19,12 +19,16 @@ import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.util.*;
 
+import android.view.View;
+import android.widget.ImageView;
+
 public class SignupActivity extends AppCompatActivity {
 
     private FirebaseAuth auth;
     private FirebaseFirestore firestore; // Firestore 인스턴스
     private EditText signName, signNickName, signmail, signPW, signPW2, signPhone, signBirth, signBirth2, signBirth3;
-    private Button signupButton;
+    private Button signupButton, pwcheckButton; // 비밀번호 확인 버튼 추가
+    private ImageView backButton; // 뒤로가기 버튼 추가
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,6 +50,8 @@ public class SignupActivity extends AppCompatActivity {
         signBirth2 = findViewById(R.id.signBirth2);
         signBirth3 = findViewById(R.id.signBirth3);
         signupButton = findViewById(R.id.signupbutton);
+        pwcheckButton = findViewById(R.id.pwcheckbutton); // 확인 버튼 초기화
+        backButton = findViewById(R.id.back); // 뒤로가기 버튼 초기화
 
         // 회원가입 버튼 클릭 리스너
         signupButton.setOnClickListener(v -> {
@@ -54,6 +60,27 @@ public class SignupActivity extends AppCompatActivity {
             String confirmPassword = signPW2.getText().toString();
             if (validateInput(email, password, confirmPassword)) {
                 createAccount(email, password);
+            }
+        });
+
+        // 비밀번호 확인 버튼 클릭 리스너 추가
+        pwcheckButton.setOnClickListener(v -> {
+            String password = signPW.getText().toString();
+            String confirmPassword = signPW2.getText().toString();
+
+            if (password.equals(confirmPassword)) {
+                Toast.makeText(SignupActivity.this, "비밀번호가 일치합니다.", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(SignupActivity.this, "비밀번호가 일치하지 않습니다.", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // 뒤로가기 버튼 클릭 리스너 추가
+        backButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // 이전 화면으로 돌아가기
+                onBackPressed();
             }
         });
     }
@@ -66,10 +93,6 @@ public class SignupActivity extends AppCompatActivity {
         }
         if (TextUtils.isEmpty(password)) {
             Toast.makeText(this, "비밀번호를 입력해 주세요.", Toast.LENGTH_SHORT).show();
-            return false;
-        }
-        if (!password.equals(confirmPassword)) {
-            Toast.makeText(this, "비밀번호가 일치하지 않습니다.", Toast.LENGTH_SHORT).show();
             return false;
         }
         return true;
@@ -126,5 +149,4 @@ public class SignupActivity extends AppCompatActivity {
                     });
         }
     }
-
 }
