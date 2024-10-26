@@ -8,4 +8,5 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="lightBlue">#8BA4FE</color>
+    <color name="colorAccent">#03DAC5</color> <!-- colorAccent 추가 -->
 </resources>

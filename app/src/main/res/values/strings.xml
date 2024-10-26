@@ -1,3 +1,21 @@
 <resources>
     <string name="app_name">SSARY</string>
+
+    <!-- 카테고리 선택에 사용할 항목 배열 -->
+    <string-array name="category_array">
+        <item>운동</item>
+        <item>식단</item>
+        <item>취미</item>
+        <item>공부</item>
+    </string-array>
+
+
+    <!-- 버튼 텍스트 -->
+    <string name="add_category_button_text">카테고리 추가</string>
+
+    <!-- 마이페이지 텍스트 -->
+    <string name="my_page_title">마이페이지</string> <!-- "마이페이지" 텍스트를 문자열 리소스로 이동 -->
+
+    <!-- 사용자 정보 placeholder 텍스트 -->
+    <string name="user_info_placeholder">여기에 사용자 정보를 표시할 수 있습니다.</string> <!-- 사용자 정보 표시 -->
 </resources>
