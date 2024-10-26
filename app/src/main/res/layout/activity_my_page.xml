@@ -4,7 +4,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#ffffff"
-    tools:context=".MyPageActivity">
+    tools:context=".MyPageActivity"
+    android:id="@+id/myPageLayout">
 
     <!-- 마이페이지 제목 -->
     <TextView
@@ -17,17 +18,16 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="50dp"
-        android:layout_gravity="center" />
+        android:layout_marginTop="50dp" />
 
     <!-- 카테고리 스피너 -->
     <Spinner
         android:id="@+id/categorySpinner"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/myPageTitle"
         app:layout_constraintStart_toStartOf="parent"
-        android:layout_marginTop="100dp"
+        android:layout_marginTop="16dp"
         android:layout_marginStart="16dp" />
 
     <!-- 카테고리 추가 버튼 -->
@@ -51,7 +51,7 @@
         app:layout_constraintStart_toEndOf="@id/addCategoryButton"
         android:layout_marginTop="16dp"
         android:layout_marginStart="8dp"
-        android:visibility="gone" /> <!-- 기본적으로 숨김 -->
+        android:visibility="gone" />
 
     <!-- 카테고리 삭제 버튼 -->
     <Button
@@ -63,7 +63,7 @@
         app:layout_constraintStart_toEndOf="@id/editCategoryButton"
         android:layout_marginTop="16dp"
         android:layout_marginStart="8dp"
-        android:visibility="gone" /> <!-- 기본적으로 숨김 -->
+        android:visibility="gone" />
 
     <!-- 글 작성 버튼 우측 하단 -->
     <Button
@@ -76,8 +76,7 @@
         android:textSize="16sp"
         android:layout_margin="16dp"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintRight_toRightOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- 글 목록 -->
     <ListView
@@ -87,9 +86,34 @@
         android:layout_marginTop="20dp"
         app:layout_constraintTop_toBottomOf="@id/addCategoryButton"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
         android:dividerHeight="1dp"
         android:divider="@android:color/darker_gray" />
+
+    <!-- 검색 아이콘 -->
+    <ImageView
+        android:id="@+id/searchIcon"
+        android:layout_width="33dp"
+        android:layout_height="35dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="4dp"
+        android:clickable="true"
+        android:contentDescription="Search"
+        android:src="@drawable/ic_search"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/myPageTitle" />
+
+    <!-- 검색 입력 필드 -->
+    <EditText
+        android:id="@+id/searchEditText"
+        android:layout_width="240dp"
+        android:layout_height="42dp"
+        android:layout_marginTop="8dp"
+        android:hint="검색어를 입력하세요."
+        android:visibility="gone"
+        android:padding="8dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.783"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/myPageTitle" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
