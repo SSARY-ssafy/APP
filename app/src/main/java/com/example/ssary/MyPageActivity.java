@@ -119,14 +119,17 @@ public class MyPageActivity extends AppCompatActivity {
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 String selectedCategory = categoryList.get(position);
 
-                // "전체"가 선택되었을 때 카테고리별로 모든 글 표시
+                // "전체"가 선택되었을 때 글 작성 버튼 숨기기
                 if (selectedCategory.equals("전체")) {
                     editCategoryButton.setVisibility(View.GONE);
                     deleteCategoryButton.setVisibility(View.GONE);
+                    writeButton.setVisibility(View.GONE); // 글 작성 버튼 숨기기
                     loadAllTitlesFromFirestore(); // 모든 글 로드
                 } else {
+                    // 특정 카테고리가 선택되면 글 작성 버튼 보이기
                     editCategoryButton.setVisibility(View.VISIBLE);
                     deleteCategoryButton.setVisibility(View.VISIBLE);
+                    writeButton.setVisibility(View.VISIBLE); // 글 작성 버튼 보이기
                     loadTitlesFromFirestore(selectedCategory); // 특정 카테고리의 글만 로드
                 }
             }
