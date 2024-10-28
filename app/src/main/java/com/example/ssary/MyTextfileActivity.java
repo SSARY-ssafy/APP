@@ -329,18 +329,55 @@ public class MyTextfileActivity extends AppCompatActivity {
             Editable editable = postContentEditText.getText();
             SpannableString spannableString = new SpannableString(editable);
 
-            // Apply current styles to the selected text
+            // Bold 스타일 처리
             if (isBold) {
-                spannableString.setSpan(new StyleSpan(Typeface.BOLD), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                // 볼드 스타일이 적용되어 있지 않으면 적용
+                boolean isAlreadyBold = false;
+                for (StyleSpan span : spannableString.getSpans(start, end, StyleSpan.class)) {
+                    if (span.getStyle() == Typeface.BOLD) {
+                        isAlreadyBold = true;
+                        break;
+                    }
+                }
+                if (!isAlreadyBold) {
+                    spannableString.setSpan(new StyleSpan(Typeface.BOLD), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                }
+            } else {
+                // 볼드 스타일이 적용되어 있으면 제거
+                for (StyleSpan span : spannableString.getSpans(start, end, StyleSpan.class)) {
+                    if (span.getStyle() == Typeface.BOLD) {
+                        spannableString.removeSpan(span);
+                    }
+                }
             }
+
+            // Italic 스타일 처리
             if (isItalic) {
-                spannableString.setSpan(new StyleSpan(Typeface.ITALIC), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                // 이탤릭 스타일이 적용되어 있지 않으면 적용
+                boolean isAlreadyItalic = false;
+                for (StyleSpan span : spannableString.getSpans(start, end, StyleSpan.class)) {
+                    if (span.getStyle() == Typeface.ITALIC) {
+                        isAlreadyItalic = true;
+                        break;
+                    }
+                }
+                if (!isAlreadyItalic) {
+                    spannableString.setSpan(new StyleSpan(Typeface.ITALIC), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                }
+            } else {
+                // 이탤릭 스타일이 적용되어 있으면 제거
+                for (StyleSpan span : spannableString.getSpans(start, end, StyleSpan.class)) {
+                    if (span.getStyle() == Typeface.ITALIC) {
+                        spannableString.removeSpan(span);
+                    }
+                }
             }
 
             postContentEditText.setText(spannableString);
             postContentEditText.setSelection(start, end);
         }
     }
+
 
 
     private void updateButtonStyle(Button button, boolean isActive) {
