@@ -2,13 +2,17 @@ package com.example.ssary;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.HorizontalScrollView;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.Spinner;
@@ -45,6 +49,10 @@ public class MyPageActivity extends AppCompatActivity {
     private ArrayAdapter<String> categoryAdapter;
     private ArrayAdapter<String> titleAdapter;
 
+    // 검색을 위한 텍스트 리스트와 아이콘
+    private EditText searchEditText;
+    private ImageView searchIcon;
+
     // Firestore 인스턴스
     private FirebaseFirestore db;
 
@@ -80,6 +88,11 @@ public class MyPageActivity extends AppCompatActivity {
 
         titleAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, titleList);
         titleListView.setAdapter(titleAdapter);
+
+        // 검색을 위한 변수들 초기화
+        searchEditText = findViewById(R.id.searchEditText);
+        searchIcon = findViewById(R.id.searchIcon);
+        setupOutsideTouchListener();
 
         // Firestore에서 카테고리 로드
         loadCategoriesFromFirestore();
@@ -151,6 +164,43 @@ public class MyPageActivity extends AppCompatActivity {
             // 특정 카테고리가 선택된 경우 제목과 카테고리를 사용해 Firestore에서 내용을 조회
             loadPostContent(selectedTitleWithCategory, selectedCategory);
         });
+
+        searchIcon.setOnClickListener(v -> {
+            if (searchEditText.getVisibility() == View.GONE) {
+                // 검색 입력 필드 보이기
+                searchEditText.setVisibility(View.VISIBLE);
+                searchEditText.requestFocus(); // 포커스 주기
+                // 키보드 열기
+                InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+                imm.showSoftInput(searchEditText, InputMethodManager.SHOW_IMPLICIT);
+            } else {
+                // 검색 입력 필드 숨기기
+                searchEditText.setVisibility(View.GONE);
+                // 키보드 닫기
+                InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+                imm.hideSoftInputFromWindow(searchEditText.getWindowToken(), 0);
+            }
+        });
+
+        // 검색 입력 필드에 텍스트 변화 감지 리스너 추가
+        searchEditText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                // 검색어에 따라 제목 리스트 필터링
+                String query = s.toString().toLowerCase();
+                filterTitles(query);
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {}
+        });
+
+
+        // 외부 터치 리스너 설정
+        setupOutsideTouchListener();
 
     }
 
@@ -483,4 +533,68 @@ public class MyPageActivity extends AppCompatActivity {
                     Toast.makeText(this, "글 삭제에 실패했습니다.", Toast.LENGTH_SHORT).show();
                 });
     }
+
+    // 외부 터치 리스너
+    private void setupOutsideTouchListener() {
+        findViewById(R.id.myPageLayout).setOnTouchListener((v, event) -> {
+            if (searchEditText.getVisibility() == View.VISIBLE) {
+                searchEditText.setVisibility(View.GONE);
+                // 키보드 닫기
+                InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+                imm.hideSoftInputFromWindow(searchEditText.getWindowToken(), 0);
+            }
+            return false;
+        });
+    }
+
+    // 제목 필터링 메서드
+    private void filterTitles(String query) {
+        titleList.clear();
+
+        // 선택된 카테고리 가져오기
+        String selectedCategory = categorySpinner.getSelectedItem().toString();
+
+        if (query.isEmpty()) {
+            // 카테고리가 "전체"일 경우 모든 제목을 로드
+            if (selectedCategory.equals("전체")) {
+                loadAllTitlesFromFirestore(); // 모든 제목을 가져오는 메소드 호출
+            } else {
+                loadTitlesFromFirestore(selectedCategory); // 선택된 카테고리의 글 로드
+            }
+        } else {
+            // 카테고리가 "전체"일 경우 모든 제목을 가져옴
+            if (selectedCategory.equals("전체")) {
+                db.collection("posts")
+                        .get()
+                        .addOnCompleteListener(task -> {
+                            if (task.isSuccessful()) {
+                                for (QueryDocumentSnapshot document : task.getResult()) {
+                                    String title = document.getString("title");
+                                    if (title != null && title.toLowerCase().contains(query.toLowerCase())) {
+                                        titleList.add(title);
+                                    }
+                                }
+                                titleAdapter.notifyDataSetChanged();
+                            }
+                        });
+            } else {
+                // 특정 카테고리의 제목을 가져와 필터링
+                db.collection("posts")
+                        .whereEqualTo("category", selectedCategory)
+                        .get()
+                        .addOnCompleteListener(task -> {
+                            if (task.isSuccessful()) {
+                                for (QueryDocumentSnapshot document : task.getResult()) {
+                                    String title = document.getString("title");
+                                    if (title != null && title.toLowerCase().contains(query.toLowerCase())) {
+                                        titleList.add(title);
+                                    }
+                                }
+                                titleAdapter.notifyDataSetChanged();
+                            }
+                        });
+            }
+        }
+    }
+
 }
