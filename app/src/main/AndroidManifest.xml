@@ -41,8 +41,9 @@
 
         <activity android:name=".MyPageActivity" />
 
-        <activity android:name=".MyTextfileActivity" />
+        <activity android:name=".MyNewTextActivity" />
 
+        <activity android:name=".MyExistTextActivity" />
 
         <!-- !씨발 중요! -->
         <!-- 모든 자바 클래스 Activity는 아래 코드를 반드시 디폴트로 입력해주세요. -->

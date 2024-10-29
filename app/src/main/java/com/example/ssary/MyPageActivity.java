@@ -57,6 +57,7 @@ public class MyPageActivity extends AppCompatActivity {
     private FirebaseFirestore db;
 
     private static final int REQUEST_CODE_WRITE_POST = 1; // 글 작성 요청 코드
+    private static final int REQUEST_CODE_READ_UPDATE_DELETE = 2; // 읽기, 수정, 삭제 요청 코드
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -104,10 +105,10 @@ public class MyPageActivity extends AppCompatActivity {
         // 글 작성 버튼 클릭 리스너
         writeButton = findViewById(R.id.writeButton);
         writeButton.setOnClickListener(v -> {
-            Intent intent = new Intent(MyPageActivity.this, MyTextfileActivity.class);
-            intent.putStringArrayListExtra("categoryList", (ArrayList<String>) categoryList);
-            intent.putExtra("selectedCategory", categorySpinner.getSelectedItem().toString()); // 선택된 카테고리 전달
-            startActivityForResult(intent, REQUEST_CODE_WRITE_POST);
+            String selectedCategory = categorySpinner.getSelectedItem().toString();
+            Intent intentToTextfile = new Intent(MyPageActivity.this, MyNewTextActivity.class);
+            intentToTextfile.putExtra("category", selectedCategory);
+            startActivity(intentToTextfile);
         });
 
         // 카테고리 수정 버튼 클릭 리스너
@@ -153,17 +154,20 @@ public class MyPageActivity extends AppCompatActivity {
 
         // 글 목록 클릭 리스너
         titleListView.setOnItemClickListener((parent, view, position, id) -> {
-            String selectedTitleWithCategory = titleList.get(position);
+            String selectedTitle = titleList.get(position);
             String selectedCategory = categorySpinner.getSelectedItem().toString();
 
-            // "전체" 모드일 때는 아무 작업도 하지 않음
             if (selectedCategory.equals("전체")) {
                 return;
             }
 
-            // 특정 카테고리가 선택된 경우 제목과 카테고리를 사용해 Firestore에서 내용을 조회
-            loadPostContent(selectedTitleWithCategory, selectedCategory);
+            // MyTextfileActivity로 이동하며 선택된 카테고리만 전달
+            Intent intentToReadUpdateDelete = new Intent(MyPageActivity.this, MyExistTextActivity.class);
+            intentToReadUpdateDelete.putExtra("title", selectedTitle);
+            intentToReadUpdateDelete.putExtra("category", selectedCategory);
+            startActivity(intentToReadUpdateDelete);
         });
+
 
         searchIcon.setOnClickListener(v -> {
             if (searchEditText.getVisibility() == View.GONE) {
@@ -207,14 +211,33 @@ public class MyPageActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+
         if (requestCode == REQUEST_CODE_WRITE_POST && resultCode == RESULT_OK && data != null) {
-            // 글 작성 후 돌아오면 선택한 카테고리의 글 목록 다시 로드
             String updatedCategory = data.getStringExtra("updatedCategory");
             if (updatedCategory != null) {
-                loadTitlesFromFirestore(updatedCategory); // 전달받은 카테고리로 글 목록 다시 로드
+                loadTitlesFromFirestore(updatedCategory); // 작성 후 글 목록 로드
+            }
+        } else if (requestCode == REQUEST_CODE_READ_UPDATE_DELETE && resultCode == RESULT_OK && data != null) {
+            String deletedCategory = data.getStringExtra("deletedCategory");
+            if (deletedCategory != null) {
+                // 글 목록을 다시 로드하여 삭제된 글을 반영
+                loadTitlesFromFirestore(deletedCategory);
             }
         }
     }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 현재 선택된 카테고리를 다시 로드하여 최신 상태로 업데이트
+        String selectedCategory = categorySpinner.getSelectedItem().toString();
+        if (selectedCategory.equals("전체")) {
+            loadAllTitlesFromFirestore();
+        } else {
+            loadTitlesFromFirestore(selectedCategory);
+        }
+    }
+
 
     // Firestore에서 카테고리 불러오기
     private void loadCategoriesFromFirestore() {
@@ -278,7 +301,7 @@ public class MyPageActivity extends AppCompatActivity {
                 });
     }
 
-    // Firestore에서 선택한 카테고리의 글 제목 불러오기
+    // Firestore에서 선택된 카테고리의 글 제목을 다시 불러오기 (카테고리 목록 재구성)
     private void loadTitlesFromFirestore(String category) {
         db.collection("posts")
                 .whereEqualTo("category", category)
@@ -295,7 +318,7 @@ public class MyPageActivity extends AppCompatActivity {
                     } else {
                         Toast.makeText(this, "글 목록을 불러오는 데 실패했습니다.", Toast.LENGTH_SHORT).show();
                     }
-                    titleAdapter.notifyDataSetChanged();
+                    titleAdapter.notifyDataSetChanged(); // 목록 즉시 갱신
                 });
     }
 
@@ -364,7 +387,7 @@ public class MyPageActivity extends AppCompatActivity {
                         String content = document.getString("content");
                         String documentId = document.getId();
 
-                        Intent intent = new Intent(MyPageActivity.this, MyTextfileActivity.class);
+                        Intent intent = new Intent(MyPageActivity.this, MyNewTextActivity.class);
                         intent.putExtra("title", title);
                         intent.putExtra("content", content);
                         intent.putExtra("category", category);
