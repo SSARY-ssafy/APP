@@ -105,6 +105,17 @@
             android:textSize="16sp"
             android:textStyle="bold" />
 
+        <!-- 새로운 job 버튼 추가 -->
+        <Button
+            android:id="@+id/Job"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginTop="20dp"
+            android:text="채용 공고"
+            android:textColor="@color/black"
+            android:textSize="16sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
     <TextView

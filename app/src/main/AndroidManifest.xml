@@ -38,6 +38,7 @@
         <activity android:name=".IdSearchActivity" />
 
         <activity android:name=".PwSearchActivity" />
+        <activity android:name=".JobActivity" />
 
         <activity android:name=".MyPageActivity" />
 
