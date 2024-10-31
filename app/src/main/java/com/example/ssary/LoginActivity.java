@@ -20,7 +20,7 @@ public class LoginActivity extends AppCompatActivity {
 
     private FirebaseAuth auth;
     private EditText loginEmail, loginPassword;
-    private Button loginButton, signupButton, searchIdButton, searchPwButton, jobButton;
+    private Button loginButton, signupButton, searchIdButton, searchPwButton, myPageButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,7 +37,7 @@ public class LoginActivity extends AppCompatActivity {
         signupButton = findViewById(R.id.signin); // 회원가입 버튼
         searchIdButton = findViewById(R.id.id);
         searchPwButton = findViewById(R.id.pw);
-        jobButton = findViewById(R.id.job_button);
+        myPageButton = findViewById(R.id.myPageButton);
 
         // 로그인 버튼 클릭 리스너
         loginButton.setOnClickListener(v -> {
@@ -66,8 +66,9 @@ public class LoginActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
-        jobButton.setOnClickListener(v -> {
-            Intent intent = new Intent(LoginActivity.this, JobActivity.class);
+        // 마이페이지로 이동하는 기능 추가
+        myPageButton.setOnClickListener(v -> {
+            Intent intent = new Intent(LoginActivity.this, MyPageActivity.class);
             startActivity(intent);
         });
     }
