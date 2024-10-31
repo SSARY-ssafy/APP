@@ -77,4 +77,10 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.4.0"))
     implementation("com.google.firebase:firebase-firestore-ktx:25.1.0")
     implementation("com.google.firebase:firebase-analytics-ktx:22.1.2")
+    implementation ("com.google.firebase:firebase-database:20.0.3")
+    implementation ("androidx.recyclerview:recyclerview:1.2.1")
+    implementation ("com.google.android.flexbox:flexbox:3.0.0")
+
+
+
 }

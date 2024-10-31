@@ -7,10 +7,10 @@ plugins {
 
 buildscript {
     repositories {
-        google()  // 이 줄이 필요합니다.
+        google()
         mavenCentral()
     }
     dependencies {
-        classpath("com.google.gms:google-services:4.4.0")
+        classpath("com.google.gms:google-services:4.4.2")
     }
 }
