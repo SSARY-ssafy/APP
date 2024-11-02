@@ -152,7 +152,6 @@ public class MyPageActivity extends AppCompatActivity {
             public void onNothingSelected(AdapterView<?> parent) {}
         });
 
-        // 글 목록 클릭 리스너
         titleListView.setOnItemClickListener((parent, view, position, id) -> {
             String selectedTitle = titleList.get(position);
             String selectedCategory = categorySpinner.getSelectedItem().toString();
@@ -161,12 +160,27 @@ public class MyPageActivity extends AppCompatActivity {
                 return;
             }
 
-            // MyTextfileActivity로 이동하며 선택된 카테고리만 전달
-            Intent intentToReadUpdateDelete = new Intent(MyPageActivity.this, MyExistTextActivity.class);
-            intentToReadUpdateDelete.putExtra("title", selectedTitle);
-            intentToReadUpdateDelete.putExtra("category", selectedCategory);
-            startActivity(intentToReadUpdateDelete);
+            // Firestore에서 선택된 제목과 카테고리에 해당하는 문서 ID 가져오기
+            db.collection("posts")
+                    .whereEqualTo("title", selectedTitle)
+                    .whereEqualTo("category", selectedCategory)
+                    .get()
+                    .addOnCompleteListener(task -> {
+                        if (task.isSuccessful() && !task.getResult().isEmpty()) {
+                            String documentId = task.getResult().getDocuments().get(0).getId();
+
+                            // MyExistTextActivity로 이동하며 선택된 카테고리, 제목, 문서 ID를 전달
+                            Intent intentToReadUpdateDelete = new Intent(MyPageActivity.this, MyExistTextActivity.class);
+                            intentToReadUpdateDelete.putExtra("title", selectedTitle);
+                            intentToReadUpdateDelete.putExtra("category", selectedCategory);
+                            intentToReadUpdateDelete.putExtra("documentId", documentId);  // 문서 ID 전달
+                            startActivity(intentToReadUpdateDelete);
+                        } else {
+                            Toast.makeText(MyPageActivity.this, "해당 글을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show();
+                        }
+                    });
         });
+
 
 
         searchIcon.setOnClickListener(v -> {
