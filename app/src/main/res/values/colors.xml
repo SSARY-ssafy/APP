@@ -11,5 +11,5 @@
     <color name="colorAccent">#03DAC5</color> <!-- colorAccent 추가 -->
     <color name="lightgray">#EFEEEE</color>
     <color name="gray">#B1B1B1</color>
-    <color name="Blue">#3CABDD</color>
+    <color name="blue">#3CABDD</color>
 </resources>
