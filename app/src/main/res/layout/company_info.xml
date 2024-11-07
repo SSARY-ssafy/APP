@@ -34,7 +34,7 @@
             android:layout_gravity="start|top"
             android:layout_marginStart="8dp"
             android:text="#삼성데이터시스템"
-            android:textColor="@color/Blue"
+            android:textColor="@color/blue"
             android:textSize="16sp"
             android:textStyle="bold" />
 
@@ -61,7 +61,7 @@
             android:clickable="true"
             android:focusable="true"
             android:text="채용 링크 >"
-            android:textColor="@color/Blue"
+            android:textColor="@color/blue"
             android:textStyle="bold" />
 
     </FrameLayout>
