@@ -3,8 +3,16 @@ package com.example.ssary;
 import android.app.DownloadManager;
 import android.content.Intent;
 import android.graphics.Paint;
+import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.Html;
+import android.text.Spannable;
+import android.text.TextWatcher;
+import android.text.style.StrikethroughSpan;
+import android.text.style.StyleSpan;
+import android.text.style.UnderlineSpan;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -21,6 +29,8 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 public class MyExistTextActivity extends AppCompatActivity {
@@ -39,6 +49,7 @@ public class MyExistTextActivity extends AppCompatActivity {
     private Button deleteFileButton;
     private Button downloadFileButton;
     private Button savePostButton;
+    private Button boldButton, italicButton, underlineButton, strikethroughButton;
 
 
     private FirebaseFirestore db;
@@ -50,6 +61,7 @@ public class MyExistTextActivity extends AppCompatActivity {
     private Uri fileUri;    // 파일 URI
 
     private boolean isFileDeleted = false; // 파일 삭제 상태 추적
+    private boolean isBold = false, isItalic = false, isUnderline = false, isStrikethrough = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,6 +85,10 @@ public class MyExistTextActivity extends AppCompatActivity {
         deleteFileButton = findViewById(R.id.deleteFileButton);
         downloadFileButton = findViewById(R.id.downloadFileButton);
         savePostButton = findViewById(R.id.savePostButton);
+        boldButton = findViewById(R.id.boldButton);
+        italicButton = findViewById(R.id.italicButton);
+        underlineButton = findViewById(R.id.underlineButton);
+        strikethroughButton = findViewById(R.id.strikethroughButton);
 
         uploadedFileTextView = findViewById(R.id.uploadedFileTextView);
         uploadedFileTextView.setPaintFlags(uploadedFileTextView.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
@@ -109,6 +125,10 @@ public class MyExistTextActivity extends AppCompatActivity {
             uploadedFileContainer.setVisibility(View.GONE);
         });
         downloadFileButton.setOnClickListener(v -> downloadFile());
+
+
+        setupButtonListeners();
+        setupTextWatcher();
     }
 
     private void enableEditing(boolean isEditable) {
@@ -159,20 +179,33 @@ public class MyExistTextActivity extends AppCompatActivity {
         startActivityForResult(intent, PICK_FILE_REQUEST);
     }
 
+    // Firestore에서 글 정보 로드
     private void loadPostFromFirestore(String documentId) {
         db.collection("posts").document(documentId)
                 .get()
                 .addOnSuccessListener(documentSnapshot -> {
                     if (documentSnapshot.exists()) {
-                        // Firestore에서 글 제목, 내용, 파일 정보 로드
                         String title = documentSnapshot.getString("title");
-                        String content = documentSnapshot.getString("content");
+//                        String content = documentSnapshot.getString("content");
+                        String styledContent = documentSnapshot.getString("content");
+                        postTitleEditText.setText(title);
+
+                        // HTML 형식의 styledContent를 파싱하여 표시
+                        if (styledContent != null && !styledContent.isEmpty()) {
+                            CharSequence styledText = parseHtmlContent(styledContent);
+                            postContentEditText.setText(styledText);
+                        } else {
+                            postContentEditText.setText("NONE");
+                        }
+
+
+
+
                         fileUrl = documentSnapshot.getString("fileUrl");
 
-                        postTitleEditText.setText(title);
-                        postContentEditText.setText(content);
 
-                        // 파일이 있는 경우 파일 이름을 표시하고 컨테이너 보이기
+
+                        // 파일 정보 표시
                         if (fileUrl != null && !fileUrl.isEmpty()) {
                             String fileName = documentSnapshot.getString("fileName");
                             uploadedFileTextView.setText(fileName != null ? fileName : "파일 이름 없음");
@@ -187,6 +220,107 @@ public class MyExistTextActivity extends AppCompatActivity {
                 });
     }
 
+    private CharSequence parseHtmlContent(String htmlContent) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            // Nougat 이상 버전에서는 FROM_HTML_MODE_LEGACY 사용
+            return Html.fromHtml(htmlContent, Html.FROM_HTML_MODE_LEGACY);
+        } else {
+            // 이전 버전에서는 Html.fromHtml만 사용
+            return Html.fromHtml(htmlContent);
+        }
+    }
+
+
+
+//    // 굵은 글씨 적용
+//    private void applyBoldSpan(Spannable spannable) {
+//        String text = spannable.toString();
+//        int start, end;
+//
+//        while ((start = text.indexOf("<b>")) != -1 && (end = text.indexOf("</b>")) != -1) {
+//            spannable.setSpan(new StyleSpan(Typeface.BOLD), start, end - 3, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+//            spannable.delete(end, end + 4); // 닫는 태그 삭제
+//            spannable.delete(start, start + 3); // 여는 태그 삭제
+//            text = spannable.toString();
+//        }
+//    }
+//
+//    // 기울임 글씨 적용
+//    private void applyItalicSpan(Spannable spannable) {
+//        String text = spannable.toString();
+//        int start, end;
+//
+//        while ((start = text.indexOf("<i>")) != -1 && (end = text.indexOf("</i>")) != -1) {
+//            spannable.setSpan(new StyleSpan(Typeface.ITALIC), start, end - 3, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+//            spannable.delete(end, end + 4);
+//            spannable.delete(start, start + 3);
+//            text = spannable.toString();
+//        }
+//    }
+//
+//    // 밑줄 적용
+//    private void applyUnderlineSpan(Spannable spannable) {
+//        String text = spannable.toString();
+//        int start, end;
+//
+//        while ((start = text.indexOf("<u>")) != -1 && (end = text.indexOf("</u>")) != -1) {
+//            spannable.setSpan(new UnderlineSpan(), start, end - 3, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+//            spannable.delete(end, end + 4);
+//            spannable.delete(start, start + 3);
+//            text = spannable.toString();
+//        }
+//    }
+//
+//    // 취소선 적용
+//    private void applyStrikethroughSpan(Spannable spannable) {
+//        String text = spannable.toString();
+//        int start, end;
+//
+//        while ((start = text.indexOf("<s>")) != -1 && (end = text.indexOf("</s>")) != -1) {
+//            spannable.setSpan(new StrikethroughSpan(), start, end - 3, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+//            spannable.delete(end, end + 4);
+//            spannable.delete(start, start + 3);
+//            text = spannable.toString();
+//        }
+//    }
+
+
+
+
+
+
+
+
+
+
+//    private void loadPostFromFirestore(String documentId) {
+//        db.collection("posts").document(documentId)
+//                .get()
+//                .addOnSuccessListener(documentSnapshot -> {
+//                    if (documentSnapshot.exists()) {
+//                        // Firestore에서 글 제목, 내용, 파일 정보 로드
+//                        String title = documentSnapshot.getString("title");
+//                        String content = documentSnapshot.getString("content");
+//                        fileUrl = documentSnapshot.getString("fileUrl");
+//
+//                        postTitleEditText.setText(title);
+//                        postContentEditText.setText(content);
+//
+//                        // 파일이 있는 경우 파일 이름을 표시하고 컨테이너 보이기
+//                        if (fileUrl != null && !fileUrl.isEmpty()) {
+//                            String fileName = documentSnapshot.getString("fileName");
+//                            uploadedFileTextView.setText(fileName != null ? fileName : "파일 이름 없음");
+//                            uploadedFileContainer.setVisibility(View.VISIBLE);
+//                        }
+//                    } else {
+//                        Toast.makeText(this, "글 정보를 찾을 수 없습니다.", Toast.LENGTH_SHORT).show();
+//                    }
+//                })
+//                .addOnFailureListener(e -> {
+//                    Toast.makeText(this, "글을 불러오는 데 실패했습니다.", Toast.LENGTH_SHORT).show();
+//                });
+//    }
+
     private void openFile() {
         if (fileUrl != null) {
             Intent intent = new Intent(Intent.ACTION_VIEW);
@@ -200,7 +334,9 @@ public class MyExistTextActivity extends AppCompatActivity {
 
     private void updatePost() {
         String updatedTitle = postTitleEditText.getText().toString().trim();
-        String updatedContent = postContentEditText.getText().toString().trim();
+        String updatedContents = postContentEditText.getText().toString().trim();
+
+        String updatedContent = convertToHtmlStyledContent(updatedContents);
 
         if (updatedTitle.isEmpty() || updatedContent.isEmpty()) {
             Toast.makeText(this, "제목과 내용을 입력해 주세요.", Toast.LENGTH_SHORT).show();
@@ -314,4 +450,188 @@ public class MyExistTextActivity extends AppCompatActivity {
             uploadedFileContainer.setVisibility(View.VISIBLE);
         }
     }
+
+    private void setupButtonListeners() {
+        boldButton.setOnClickListener(v -> {
+            isBold = !isBold;
+            applyCurrentStyleToSelection(Typeface.BOLD, isBold);
+            updateButtonStyle(boldButton, isBold);
+        });
+
+        italicButton.setOnClickListener(v -> {
+            isItalic = !isItalic;
+            applyCurrentStyleToSelection(Typeface.ITALIC, isItalic);
+            updateButtonStyle(italicButton, isItalic);
+        });
+
+        underlineButton.setOnClickListener(v -> {
+            isUnderline = !isUnderline;
+            applyCurrentSpanToSelection(new UnderlineSpan(), isUnderline);
+            updateButtonStyle(underlineButton, isUnderline);
+        });
+
+        strikethroughButton.setOnClickListener(v -> {
+            isStrikethrough = !isStrikethrough;
+            applyCurrentSpanToSelection(new StrikethroughSpan(), isStrikethrough);
+            updateButtonStyle(strikethroughButton, isStrikethrough);
+        });
+    }
+
+    private void setupTextWatcher() {
+        postContentEditText.addTextChangedListener(new TextWatcher() {
+            private int start, before, count;
+
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                this.start = start;
+                this.before = count;
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                this.count = count;
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                if (count > 0) {
+                    applyCurrentStyles(s, start, start + count);
+                }
+            }
+        });
+    }
+
+    private void applyCurrentStyleToSelection(int style, boolean enable) {
+        Editable text = postContentEditText.getText();
+        int start = postContentEditText.getSelectionStart();
+        int end = postContentEditText.getSelectionEnd();
+
+        if (enable) {
+            text.setSpan(new StyleSpan(style), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        } else {
+            StyleSpan[] spans = text.getSpans(start, end, StyleSpan.class);
+            for (StyleSpan span : spans) {
+                if (span.getStyle() == style) {
+                    text.removeSpan(span);
+                }
+            }
+        }
+    }
+
+    private void applyCurrentSpanToSelection(Object span, boolean enable) {
+        Editable text = postContentEditText.getText();
+        int start = postContentEditText.getSelectionStart();
+        int end = postContentEditText.getSelectionEnd();
+
+        if (enable) {
+            text.setSpan(span, start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        } else {
+            if (span instanceof UnderlineSpan) {
+                UnderlineSpan[] spans = text.getSpans(start, end, UnderlineSpan.class);
+                for (UnderlineSpan uSpan : spans) {
+                    text.removeSpan(uSpan);
+                }
+            } else if (span instanceof StrikethroughSpan) {
+                StrikethroughSpan[] spans = text.getSpans(start, end, StrikethroughSpan.class);
+                for (StrikethroughSpan sSpan : spans) {
+                    text.removeSpan(sSpan);
+                }
+            }
+        }
+    }
+
+    private void applyCurrentStyles(Editable s, int start, int end) {
+        if (isBold) s.setSpan(new StyleSpan(Typeface.BOLD), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        if (isItalic) s.setSpan(new StyleSpan(Typeface.ITALIC), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        if (isUnderline) s.setSpan(new UnderlineSpan(), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        if (isStrikethrough) s.setSpan(new StrikethroughSpan(), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+    }
+
+    private void updateButtonStyle(Button button, boolean isActive) {
+        if (isActive) {
+            button.setBackgroundColor(getResources().getColor(R.color.colorAccent));
+            button.setTextColor(getResources().getColor(android.R.color.white));
+        } else {
+            button.setBackgroundColor(getResources().getColor(android.R.color.darker_gray));
+            button.setTextColor(getResources().getColor(android.R.color.black));
+        }
+    }
+
+//    private void savePostToFirestore() {
+////        String category = categorySpinner.getSelectedItem().toString();
+//        String category = getIntent().getStringExtra("category");
+//        String title = postTitleEditText.getText().toString().trim();
+//        String content = postContentEditText.getText().toString();
+//
+//        if (title.isEmpty() || content.isEmpty()) {
+//            Toast.makeText(this, "제목과 내용을 입력해 주세요.", Toast.LENGTH_SHORT).show();
+//            return;
+//        }
+//
+//        Map<String, Object> post = new HashMap<>();
+//        post.put("category", category);
+//        post.put("title", title);
+//        post.put("content", content);
+//
+//        String htmlContent = convertToHtmlStyledContent(content);
+//        post.put("styledContent", htmlContent);
+//
+//        db.collection("posts").add(post)
+//                .addOnSuccessListener(documentReference -> {
+//                    Toast.makeText(MyExistTextActivity.this, "글이 성공적으로 저장되었습니다.", Toast.LENGTH_SHORT).show();
+//                    finish();
+//                })
+//                .addOnFailureListener(e -> Toast.makeText(MyExistTextActivity.this, "글 저장에 실패했습니다.", Toast.LENGTH_SHORT).show());
+//    }
+
+    private String convertToHtmlStyledContent(String content) {
+        StringBuilder htmlContent = new StringBuilder();
+        Editable text = postContentEditText.getText();
+
+        boolean isBold = false, isItalic = false, isUnderline = false, isStrikethrough = false;
+
+        for (int i = 0; i < content.length(); i++) {
+            char ch = content.charAt(i);
+
+            boolean bold = false, italic = false, underline = false, strikethrough = false;
+
+            // 현재 위치의 스타일 검사
+            for (StyleSpan span : text.getSpans(i, i + 1, StyleSpan.class)) {
+                if (span.getStyle() == Typeface.BOLD) bold = true;
+                if (span.getStyle() == Typeface.ITALIC) italic = true;
+            }
+            if (text.getSpans(i, i + 1, UnderlineSpan.class).length > 0) underline = true;
+            if (text.getSpans(i, i + 1, StrikethroughSpan.class).length > 0) strikethrough = true;
+
+            // 스타일이 변경되면 이전 스타일 태그 닫기
+            if (isBold && !bold) htmlContent.append("</b>");
+            if (isItalic && !italic) htmlContent.append("</i>");
+            if (isUnderline && !underline) htmlContent.append("</u>");
+            if (isStrikethrough && !strikethrough) htmlContent.append("</s>");
+
+            // 새로운 스타일 태그 열기
+            if (!isBold && bold) htmlContent.append("<b>");
+            if (!isItalic && italic) htmlContent.append("<i>");
+            if (!isUnderline && underline) htmlContent.append("<u>");
+            if (!isStrikethrough && strikethrough) htmlContent.append("<s>");
+
+            // 현재 문자 추가
+            htmlContent.append(ch);
+
+            // 현재 스타일 상태 업데이트
+            isBold = bold;
+            isItalic = italic;
+            isUnderline = underline;
+            isStrikethrough = strikethrough;
+        }
+
+        // 남아있는 스타일 태그 닫기
+        if (isStrikethrough) htmlContent.append("</s>");
+        if (isUnderline) htmlContent.append("</u>");
+        if (isItalic) htmlContent.append("</i>");
+        if (isBold) htmlContent.append("</b>");
+
+        return htmlContent.toString();
+    }
+
 }

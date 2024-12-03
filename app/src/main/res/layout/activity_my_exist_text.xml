@@ -74,6 +74,18 @@
             android:layout_height="wrap_content"
             android:text="I"
             android:textStyle="italic" />
+
+        <Button
+            android:id="@+id/underlineButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="U" />
+
+        <Button
+            android:id="@+id/strikethroughButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="S" />
     </LinearLayout>
 
     <!-- 파일 선택 버튼 -->
