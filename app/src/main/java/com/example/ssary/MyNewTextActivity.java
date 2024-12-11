@@ -14,6 +14,7 @@ import android.text.style.UnderlineSpan;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -32,25 +33,18 @@ import java.util.UUID;
 
 public class MyNewTextActivity extends AppCompatActivity {
 
-    private static final int PICK_FILE_REQUEST = 1; // 파일 선택 코드
+    private static final int PICK_FILE_REQUEST = 1;
 
-    private TextView categoryTextView;
-    private EditText postTitleEditText;
-    private EditText postContentEditText;
+    private TextView categoryTextView, uploadedFileTextView;
+    private EditText titleEditText, contentEditText;
+    private LinearLayout uploadedFileContainer;
+    private ImageView boldButton, italicButton, underlineButton, strikethroughButton, uploadFileButton, imageButton, changeFileButton, deleteFileButton;
     private Button submitPostButton;
-    private Button uploadFileButton;
-    private Button boldButton, italicButton, underlineButton, strikethroughButton;
-    private Button changeFileButton;
-    private Button deleteFileButton;
-    private TextView uploadedFileTextView; // 업로드된 파일 정보를 표시할 TextView
     private FirebaseFirestore db;
     private FirebaseStorage storage;
-    private Uri fileUri; // 선택한 파일의 Uri
-    private String fileName; // 파일 이름
-    private LinearLayout uploadedFileContainer; // 파일 이름과 아이콘 컨테이너
+    private Uri fileUri;
+    private String fileName;
 
-    private boolean isEditMode = false;
-    private String documentId;
     private boolean isBold = false, isItalic = false, isUnderline = false, isStrikethrough = false;
 
     @Override
@@ -62,19 +56,20 @@ public class MyNewTextActivity extends AppCompatActivity {
         storage = FirebaseStorage.getInstance(); // Firebase Storage 초기화
 
         categoryTextView = findViewById(R.id.categoryTextView);
-        postTitleEditText = findViewById(R.id.postTitleEditText);
-        postContentEditText = findViewById(R.id.postContentEditText);
-        submitPostButton = findViewById(R.id.submitPostButton);
+        titleEditText = findViewById(R.id.titleEditText);
+        contentEditText = findViewById(R.id.contentEditText);
+        uploadedFileContainer = findViewById(R.id.uploadedFileContainer);
         boldButton = findViewById(R.id.boldButton);
         italicButton = findViewById(R.id.italicButton);
         underlineButton = findViewById(R.id.underlineButton);
         strikethroughButton = findViewById(R.id.strikethroughButton);
         uploadFileButton = findViewById(R.id.uploadFileButton);
+        imageButton = findViewById(R.id.imageButton);
+        submitPostButton = findViewById(R.id.submitPostButton);
         changeFileButton = findViewById(R.id.changeFileButton);
         deleteFileButton = findViewById(R.id.deleteFileButton);
         uploadedFileTextView = findViewById(R.id.uploadedFileTextView);
         uploadedFileTextView.setPaintFlags(uploadedFileTextView.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
-        uploadedFileContainer = findViewById(R.id.uploadedFileContainer);
 
         uploadFileButton.setOnClickListener(v -> selectFile());
         changeFileButton.setOnClickListener(v -> selectFile());  // 바로 새 파일 선택
@@ -88,7 +83,7 @@ public class MyNewTextActivity extends AppCompatActivity {
         String category = getIntent().getStringExtra("category");
         String title = getIntent().getStringExtra("title");
         String content = getIntent().getStringExtra("content");
-        documentId = getIntent().getStringExtra("documentId");
+        String documentId = getIntent().getStringExtra("documentId");
 
         // 카테고리 이름을 categoryTextView에 설정
         if (category != null && !category.isEmpty()) {
@@ -98,9 +93,9 @@ public class MyNewTextActivity extends AppCompatActivity {
         }
 
         if (title != null && content != null) {
-            postTitleEditText.setText(title);
-            postContentEditText.setText(content);
-            isEditMode = true;
+            titleEditText.setText(title);
+            contentEditText.setText(content);
+            boolean isEditMode = true;
             submitPostButton.setText("글 수정");
         }
 
@@ -117,8 +112,8 @@ public class MyNewTextActivity extends AppCompatActivity {
         });
 
         submitPostButton.setOnClickListener(v -> {
-            String postTitle = postTitleEditText.getText().toString().trim();
-            String postContent = postContentEditText.getText().toString().trim();
+            String postTitle = titleEditText.getText().toString().trim();
+            String postContent = contentEditText.getText().toString().trim();
 
             if (postTitle.isEmpty() || postContent.isEmpty()) {
                 Toast.makeText(MyNewTextActivity.this, "제목과 내용을 입력해 주세요.", Toast.LENGTH_SHORT).show();
@@ -136,9 +131,7 @@ public class MyNewTextActivity extends AppCompatActivity {
         setupButtonListeners();
         setupTextWatcher();
 
-//        submitPostButton.setOnClickListener(v -> savePostToFirestore());
-
-        postContentEditText.addTextChangedListener(new TextWatcher() {
+        contentEditText.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
 
@@ -173,27 +166,6 @@ public class MyNewTextActivity extends AppCompatActivity {
                 .addOnFailureListener(e -> Toast.makeText(MyNewTextActivity.this, "글 저장에 실패했습니다.", Toast.LENGTH_SHORT).show());
     }
 
-
-//    private void savePostToFirestore(String category, String title, String content, String fileName, String fileUrl) {
-//        Map<String, Object> post = new HashMap<>();
-//        String htmlContent = convertToHtmlStyledContent(content);
-//        post.put("category", category);
-//        post.put("title", title);
-//        post.put("content", htmlContent);
-//        post.put("fileName", fileName);  // 파일 이름 저장
-//        post.put("fileUrl", fileUrl);    // 파일 URL 저장
-//
-//        db.collection("posts").add(post)
-//                .addOnSuccessListener(documentReference -> {
-//                    Toast.makeText(MyNewTextActivity.this, "글이 성공적으로 저장되었습니다.", Toast.LENGTH_SHORT).show();
-//                    Intent resultIntent = new Intent();
-//                    resultIntent.putExtra("updatedCategory", category);
-//                    setResult(RESULT_OK, resultIntent);
-//                    finish();
-//                })
-//                .addOnFailureListener(e -> Toast.makeText(MyNewTextActivity.this, "글 저장에 실패했습니다.", Toast.LENGTH_SHORT).show());
-//    }
-
     private void uploadFileToFirebase(String title, String content, String category) {
         fileName = fileUri.getLastPathSegment();  // 원본 파일 이름
         String uniqueFileName = UUID.randomUUID().toString() + "_" + fileName; // 고유 식별자 추가
@@ -226,22 +198,12 @@ public class MyNewTextActivity extends AppCompatActivity {
         }
     }
 
-//    private void updateButtonStyle(Button button, boolean isActive) {
-//        if (isActive) {
-//            button.setBackgroundColor(getResources().getColor(R.color.colorAccent));
-//            button.setTextColor(getResources().getColor(android.R.color.white));
-//        } else {
-//            button.setBackgroundColor(getResources().getColor(android.R.color.darker_gray));
-//            button.setTextColor(getResources().getColor(android.R.color.black));
-//        }
-//    }
-
     private void applyCurrentStyleToInput() {
-        int start = postContentEditText.getSelectionStart();
-        int end = postContentEditText.getSelectionEnd();
+        int start = contentEditText.getSelectionStart();
+        int end = contentEditText.getSelectionEnd();
 
         if (start < end) {
-            Editable editable = postContentEditText.getText();
+            Editable editable = contentEditText.getText();
             SpannableString spannableString = new SpannableString(editable);
 
             if (isBold) {
@@ -282,41 +244,54 @@ public class MyNewTextActivity extends AppCompatActivity {
                 }
             }
 
-            postContentEditText.setText(spannableString);
-            postContentEditText.setSelection(start, end);
+            contentEditText.setText(spannableString);
+            contentEditText.setSelection(start, end);
         }
     }
-
-
 
     private void setupButtonListeners() {
         boldButton.setOnClickListener(v -> {
             isBold = !isBold;
-            applyCurrentStyleToSelection(Typeface.BOLD, isBold);
-            updateButtonStyle(boldButton, isBold);
+            toggleStyle(contentEditText, new StyleSpan(android.graphics.Typeface.BOLD), isBold);
         });
 
         italicButton.setOnClickListener(v -> {
             isItalic = !isItalic;
-            applyCurrentStyleToSelection(Typeface.ITALIC, isItalic);
-            updateButtonStyle(italicButton, isItalic);
+            toggleStyle(contentEditText, new StyleSpan(android.graphics.Typeface.ITALIC), isItalic);
         });
 
         underlineButton.setOnClickListener(v -> {
             isUnderline = !isUnderline;
-            applyCurrentSpanToSelection(new UnderlineSpan(), isUnderline);
-            updateButtonStyle(underlineButton, isUnderline);
+            toggleStyle(contentEditText, new UnderlineSpan(), isUnderline);
         });
 
         strikethroughButton.setOnClickListener(v -> {
             isStrikethrough = !isStrikethrough;
-            applyCurrentSpanToSelection(new StrikethroughSpan(), isStrikethrough);
-            updateButtonStyle(strikethroughButton, isStrikethrough);
+            toggleStyle(contentEditText, new StrikethroughSpan(), isStrikethrough);
+        });
+
+        imageButton.setOnClickListener(v -> {
+            Toast.makeText(this, "이미지 추가 버튼 클릭됨", Toast.LENGTH_SHORT).show();
         });
     }
 
+    private void toggleStyle(EditText editText, Object style, boolean isEnabled) {
+        Editable text = editText.getText();
+        int start = editText.getSelectionStart();
+        int end = editText.getSelectionEnd();
+
+        if (isEnabled) {
+            text.setSpan(style, start, end, Editable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        } else {
+            Object[] spans = text.getSpans(start, end, style.getClass());
+            for (Object span : spans) {
+                text.removeSpan(span);
+            }
+        }
+    }
+
     private void setupTextWatcher() {
-        postContentEditText.addTextChangedListener(new TextWatcher() {
+        contentEditText.addTextChangedListener(new TextWatcher() {
             private int start, before, count;
 
             @Override
@@ -339,45 +314,6 @@ public class MyNewTextActivity extends AppCompatActivity {
         });
     }
 
-    private void applyCurrentStyleToSelection(int style, boolean enable) {
-        Editable text = postContentEditText.getText();
-        int start = postContentEditText.getSelectionStart();
-        int end = postContentEditText.getSelectionEnd();
-
-        if (enable) {
-            text.setSpan(new StyleSpan(style), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-        } else {
-            StyleSpan[] spans = text.getSpans(start, end, StyleSpan.class);
-            for (StyleSpan span : spans) {
-                if (span.getStyle() == style) {
-                    text.removeSpan(span);
-                }
-            }
-        }
-    }
-
-    private void applyCurrentSpanToSelection(Object span, boolean enable) {
-        Editable text = postContentEditText.getText();
-        int start = postContentEditText.getSelectionStart();
-        int end = postContentEditText.getSelectionEnd();
-
-        if (enable) {
-            text.setSpan(span, start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-        } else {
-            if (span instanceof UnderlineSpan) {
-                UnderlineSpan[] spans = text.getSpans(start, end, UnderlineSpan.class);
-                for (UnderlineSpan uSpan : spans) {
-                    text.removeSpan(uSpan);
-                }
-            } else if (span instanceof StrikethroughSpan) {
-                StrikethroughSpan[] spans = text.getSpans(start, end, StrikethroughSpan.class);
-                for (StrikethroughSpan sSpan : spans) {
-                    text.removeSpan(sSpan);
-                }
-            }
-        }
-    }
-
     private void applyCurrentStyles(Editable s, int start, int end) {
         if (isBold) s.setSpan(new StyleSpan(Typeface.BOLD), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         if (isItalic) s.setSpan(new StyleSpan(Typeface.ITALIC), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -385,46 +321,9 @@ public class MyNewTextActivity extends AppCompatActivity {
         if (isStrikethrough) s.setSpan(new StrikethroughSpan(), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
     }
 
-    private void updateButtonStyle(Button button, boolean isActive) {
-        if (isActive) {
-            button.setBackgroundColor(getResources().getColor(R.color.colorAccent));
-            button.setTextColor(getResources().getColor(android.R.color.white));
-        } else {
-            button.setBackgroundColor(getResources().getColor(android.R.color.darker_gray));
-            button.setTextColor(getResources().getColor(android.R.color.black));
-        }
-    }
-
-//    private void savePostToFirestore() {
-////        String category = categorySpinner.getSelectedItem().toString();
-//        String category = getIntent().getStringExtra("category");
-//        String title = postTitleEditText.getText().toString().trim();
-//        String content = postContentEditText.getText().toString();
-//
-//        if (title.isEmpty() || content.isEmpty()) {
-//            Toast.makeText(this, "제목과 내용을 입력해 주세요.", Toast.LENGTH_SHORT).show();
-//            return;
-//        }
-//
-//        Map<String, Object> post = new HashMap<>();
-//        post.put("category", category);
-//        post.put("title", title);
-//        post.put("content", content);
-//
-//        String htmlContent = convertToHtmlStyledContent(content);
-//        post.put("styledContent", htmlContent);
-//
-//        db.collection("posts").add(post)
-//                .addOnSuccessListener(documentReference -> {
-//                    Toast.makeText(MyNewTextActivity.this, "글이 성공적으로 저장되었습니다.", Toast.LENGTH_SHORT).show();
-//                    finish();
-//                })
-//                .addOnFailureListener(e -> Toast.makeText(MyNewTextActivity.this, "글 저장에 실패했습니다.", Toast.LENGTH_SHORT).show());
-//    }
-
     private String convertToHtmlStyledContent(String content) {
         StringBuilder htmlContent = new StringBuilder();
-        Editable text = postContentEditText.getText();
+        Editable text = contentEditText.getText();
 
         boolean isBold = false, isItalic = false, isUnderline = false, isStrikethrough = false;
 
@@ -472,35 +371,4 @@ public class MyNewTextActivity extends AppCompatActivity {
         return htmlContent.toString();
     }
 
-
-//    private String convertToHtmlStyledContent(String content) {
-//        StringBuilder htmlContent = new StringBuilder();
-//        Editable text = postContentEditText.getText();
-//
-//        for (int i = 0; i < content.length(); i++) {
-//            char ch = content.charAt(i);
-//            boolean isBold = false, isItalic = false, isUnderline = false, isStrikethrough = false;
-//
-//            for (StyleSpan span : text.getSpans(i, i + 1, StyleSpan.class)) {
-//                if (span.getStyle() == Typeface.BOLD) isBold = true;
-//                if (span.getStyle() == Typeface.ITALIC) isItalic = true;
-//            }
-//            if (text.getSpans(i, i + 1, UnderlineSpan.class).length > 0) isUnderline = true;
-//            if (text.getSpans(i, i + 1, StrikethroughSpan.class).length > 0) isStrikethrough = true;
-//
-//            if (isBold) htmlContent.append("<b>");
-//            if (isItalic) htmlContent.append("<i>");
-//            if (isUnderline) htmlContent.append("<u>");
-//            if (isStrikethrough) htmlContent.append("<s>");
-//
-//            htmlContent.append(ch);
-//
-//            if (isStrikethrough) htmlContent.append("</s>");
-//            if (isUnderline) htmlContent.append("</u>");
-//            if (isItalic) htmlContent.append("</i>");
-//            if (isBold) htmlContent.append("</b>");
-//        }
-//
-//        return htmlContent.toString();
-//    }
 }
