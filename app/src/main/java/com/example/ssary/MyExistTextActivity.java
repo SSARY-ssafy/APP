@@ -16,11 +16,14 @@ import android.text.style.UnderlineSpan;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
+
 import android.content.Context;
 import android.os.Environment;
 
@@ -29,36 +32,23 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 
 public class MyExistTextActivity extends AppCompatActivity {
 
     private static final int PICK_FILE_REQUEST = 1; // 파일 선택 코드
 
-    private TextView categoryTextView;
-    private EditText postTitleEditText;
-    private EditText postContentEditText;
-    private TextView uploadedFileTextView;
+    private TextView categoryTextView, uploadedFileTextView;
+    private EditText titleEditText, contentEditText;
     private LinearLayout uploadedFileContainer;
-    private Button updatePostButton;
-    private Button deletePostButton;
-    private Button uploadFileButton;
-    private Button changeFileButton;
-    private Button deleteFileButton;
-    private Button downloadFileButton;
-    private Button savePostButton;
-    private Button boldButton, italicButton, underlineButton, strikethroughButton;
-
-
+    private ImageView boldButton, italicButton, underlineButton, strikethroughButton, uploadFileButton, imageButton, changeFileButton, deleteFileButton, downloadFileButton;
+    private Button savePostButton, updatePostButton, deletePostButton;
     private FirebaseFirestore db;
     private FirebaseStorage storage;
-
-    private String fileName; // 파일 이름
+    private String fileName;
     private String documentId;
-    private String fileUrl; // 파일 URL (스토리지에서 가져옴)
-    private Uri fileUri;    // 파일 URI
+    private String fileUrl;
+    private Uri fileUri;
 
     private boolean isFileDeleted = false; // 파일 삭제 상태 추적
     private boolean isBold = false, isItalic = false, isUnderline = false, isStrikethrough = false;
@@ -68,14 +58,12 @@ public class MyExistTextActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_my_exist_text);
 
-        // Firestore 및 Storage 초기화
         db = FirebaseFirestore.getInstance();
         storage = FirebaseStorage.getInstance();
 
-        // 레이아웃 요소 초기화
         categoryTextView = findViewById(R.id.categoryTextView);
-        postTitleEditText = findViewById(R.id.postTitleEditText);
-        postContentEditText = findViewById(R.id.postContentEditText);
+        titleEditText = findViewById(R.id.titleEditText);
+        contentEditText = findViewById(R.id.contentEditText);
 
         updatePostButton = findViewById(R.id.updatePostButton);
         deletePostButton = findViewById(R.id.deletePostButton);
@@ -96,23 +84,24 @@ public class MyExistTextActivity extends AppCompatActivity {
 
         enableEditing(false);
 
-        // Intent에서 데이터 받기
         Intent intent = getIntent();
         String category = intent.getStringExtra("category");
-        String title = intent.getStringExtra("title");
         documentId = intent.getStringExtra("documentId");
 
-        // 카테고리 설정
         categoryTextView.setText("카테고리: " + category);
 
-        // Firestore에서 글 정보 로드
         loadPostFromFirestore(documentId);
 
-        // ============== 리스너 =================
+        savePostButton.setOnClickListener(v -> {
+            updatePost();
+            enableEditing(false);
+            updateTitleEditTextConstraint(updatePostButton.getId());
+        });
+        updatePostButton.setOnClickListener(v -> {
+            enableEditing(true);
 
-//        updatePostButton.setOnClickListener(v -> updatePost());
-        savePostButton.setOnClickListener(v -> updatePost());
-        updatePostButton.setOnClickListener(v -> enableEditing(true));
+            updateTitleEditTextConstraint(savePostButton.getId());
+        });
 
         deletePostButton.setOnClickListener(v -> deletePost());
         uploadedFileTextView.setOnClickListener(v -> openFile());
@@ -131,9 +120,15 @@ public class MyExistTextActivity extends AppCompatActivity {
         setupTextWatcher();
     }
 
+    private void updateTitleEditTextConstraint(int topToBottomOfId) {
+        ConstraintLayout.LayoutParams params = (ConstraintLayout.LayoutParams) titleEditText.getLayoutParams();
+        params.topToBottom = topToBottomOfId;
+        titleEditText.setLayoutParams(params);
+    }
+
     private void enableEditing(boolean isEditable) {
-        postTitleEditText.setEnabled(isEditable);
-        postContentEditText.setEnabled(isEditable);
+        titleEditText.setEnabled(isEditable);
+        contentEditText.setEnabled(isEditable);
 
         if (isEditable) {
             uploadFileButton.setVisibility(View.VISIBLE);
@@ -142,12 +137,15 @@ public class MyExistTextActivity extends AppCompatActivity {
             deleteFileButton.setVisibility(View.VISIBLE);
             savePostButton.setVisibility(View.VISIBLE);
             updatePostButton.setVisibility(View.GONE);
+            deletePostButton.setVisibility(View.GONE);
         } else {
+            uploadFileButton.setVisibility(View.GONE);
             downloadFileButton.setVisibility(View.VISIBLE);
             changeFileButton.setVisibility(View.GONE);
             deleteFileButton.setVisibility(View.GONE);
             savePostButton.setVisibility(View.GONE);
             updatePostButton.setVisibility(View.VISIBLE);
+            deletePostButton.setVisibility(View.VISIBLE);
         }
     }
 
@@ -186,24 +184,17 @@ public class MyExistTextActivity extends AppCompatActivity {
                 .addOnSuccessListener(documentSnapshot -> {
                     if (documentSnapshot.exists()) {
                         String title = documentSnapshot.getString("title");
-//                        String content = documentSnapshot.getString("content");
                         String styledContent = documentSnapshot.getString("content");
-                        postTitleEditText.setText(title);
+                        titleEditText.setText(title);
 
                         // HTML 형식의 styledContent를 파싱하여 표시
                         if (styledContent != null && !styledContent.isEmpty()) {
                             CharSequence styledText = parseHtmlContent(styledContent);
-                            postContentEditText.setText(styledText);
+                            contentEditText.setText(styledText);
                         } else {
-                            postContentEditText.setText("NONE");
+                            contentEditText.setText("NONE");
                         }
-
-
-
-
                         fileUrl = documentSnapshot.getString("fileUrl");
-
-
 
                         // 파일 정보 표시
                         if (fileUrl != null && !fileUrl.isEmpty()) {
@@ -230,97 +221,6 @@ public class MyExistTextActivity extends AppCompatActivity {
         }
     }
 
-
-
-//    // 굵은 글씨 적용
-//    private void applyBoldSpan(Spannable spannable) {
-//        String text = spannable.toString();
-//        int start, end;
-//
-//        while ((start = text.indexOf("<b>")) != -1 && (end = text.indexOf("</b>")) != -1) {
-//            spannable.setSpan(new StyleSpan(Typeface.BOLD), start, end - 3, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-//            spannable.delete(end, end + 4); // 닫는 태그 삭제
-//            spannable.delete(start, start + 3); // 여는 태그 삭제
-//            text = spannable.toString();
-//        }
-//    }
-//
-//    // 기울임 글씨 적용
-//    private void applyItalicSpan(Spannable spannable) {
-//        String text = spannable.toString();
-//        int start, end;
-//
-//        while ((start = text.indexOf("<i>")) != -1 && (end = text.indexOf("</i>")) != -1) {
-//            spannable.setSpan(new StyleSpan(Typeface.ITALIC), start, end - 3, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-//            spannable.delete(end, end + 4);
-//            spannable.delete(start, start + 3);
-//            text = spannable.toString();
-//        }
-//    }
-//
-//    // 밑줄 적용
-//    private void applyUnderlineSpan(Spannable spannable) {
-//        String text = spannable.toString();
-//        int start, end;
-//
-//        while ((start = text.indexOf("<u>")) != -1 && (end = text.indexOf("</u>")) != -1) {
-//            spannable.setSpan(new UnderlineSpan(), start, end - 3, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-//            spannable.delete(end, end + 4);
-//            spannable.delete(start, start + 3);
-//            text = spannable.toString();
-//        }
-//    }
-//
-//    // 취소선 적용
-//    private void applyStrikethroughSpan(Spannable spannable) {
-//        String text = spannable.toString();
-//        int start, end;
-//
-//        while ((start = text.indexOf("<s>")) != -1 && (end = text.indexOf("</s>")) != -1) {
-//            spannable.setSpan(new StrikethroughSpan(), start, end - 3, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-//            spannable.delete(end, end + 4);
-//            spannable.delete(start, start + 3);
-//            text = spannable.toString();
-//        }
-//    }
-
-
-
-
-
-
-
-
-
-
-//    private void loadPostFromFirestore(String documentId) {
-//        db.collection("posts").document(documentId)
-//                .get()
-//                .addOnSuccessListener(documentSnapshot -> {
-//                    if (documentSnapshot.exists()) {
-//                        // Firestore에서 글 제목, 내용, 파일 정보 로드
-//                        String title = documentSnapshot.getString("title");
-//                        String content = documentSnapshot.getString("content");
-//                        fileUrl = documentSnapshot.getString("fileUrl");
-//
-//                        postTitleEditText.setText(title);
-//                        postContentEditText.setText(content);
-//
-//                        // 파일이 있는 경우 파일 이름을 표시하고 컨테이너 보이기
-//                        if (fileUrl != null && !fileUrl.isEmpty()) {
-//                            String fileName = documentSnapshot.getString("fileName");
-//                            uploadedFileTextView.setText(fileName != null ? fileName : "파일 이름 없음");
-//                            uploadedFileContainer.setVisibility(View.VISIBLE);
-//                        }
-//                    } else {
-//                        Toast.makeText(this, "글 정보를 찾을 수 없습니다.", Toast.LENGTH_SHORT).show();
-//                    }
-//                })
-//                .addOnFailureListener(e -> {
-//                    Toast.makeText(this, "글을 불러오는 데 실패했습니다.", Toast.LENGTH_SHORT).show();
-//                });
-//    }
-
     private void openFile() {
         if (fileUrl != null) {
             Intent intent = new Intent(Intent.ACTION_VIEW);
@@ -333,8 +233,8 @@ public class MyExistTextActivity extends AppCompatActivity {
     }
 
     private void updatePost() {
-        String updatedTitle = postTitleEditText.getText().toString().trim();
-        String updatedContents = postContentEditText.getText().toString().trim();
+        String updatedTitle = titleEditText.getText().toString().trim();
+        String updatedContents = contentEditText.getText().toString().trim();
 
         String updatedContent = convertToHtmlStyledContent(updatedContents);
 
@@ -372,6 +272,9 @@ public class MyExistTextActivity extends AppCompatActivity {
             // 파일이 수정되지 않은 경우 Firestore에 제목과 내용만 업데이트
             saveUpdatedPost(updatedTitle, updatedContent, fileName, fileUrl);
         }
+
+        enableEditing(false);
+        updateTitleEditTextConstraint(updatePostButton.getId());
     }
 
 
@@ -380,7 +283,6 @@ public class MyExistTextActivity extends AppCompatActivity {
                 .update("title", title, "content", content, "fileName", fileName, "fileUrl", fileUrl)
                 .addOnSuccessListener(aVoid -> {
                     Toast.makeText(this, "글이 수정되었습니다.", Toast.LENGTH_SHORT).show();
-                    finish(); // 수정 후 액티비티 종료
                 })
                 .addOnFailureListener(e -> {
                     Toast.makeText(this, "글 수정에 실패했습니다.", Toast.LENGTH_SHORT).show();
@@ -454,31 +356,44 @@ public class MyExistTextActivity extends AppCompatActivity {
     private void setupButtonListeners() {
         boldButton.setOnClickListener(v -> {
             isBold = !isBold;
-            applyCurrentStyleToSelection(Typeface.BOLD, isBold);
-            updateButtonStyle(boldButton, isBold);
+            toggleStyle(contentEditText, new StyleSpan(android.graphics.Typeface.BOLD), isBold);
         });
 
         italicButton.setOnClickListener(v -> {
             isItalic = !isItalic;
-            applyCurrentStyleToSelection(Typeface.ITALIC, isItalic);
-            updateButtonStyle(italicButton, isItalic);
+            toggleStyle(contentEditText, new StyleSpan(android.graphics.Typeface.ITALIC), isItalic);
         });
 
         underlineButton.setOnClickListener(v -> {
             isUnderline = !isUnderline;
-            applyCurrentSpanToSelection(new UnderlineSpan(), isUnderline);
-            updateButtonStyle(underlineButton, isUnderline);
+//            applyCurrentSpanToSelection(new UnderlineSpan(), isUnderline);
+//            updateButtonStyle(underlineButton, isUnderline);
+            toggleStyle(contentEditText, new UnderlineSpan(), isUnderline);
         });
 
         strikethroughButton.setOnClickListener(v -> {
             isStrikethrough = !isStrikethrough;
-            applyCurrentSpanToSelection(new StrikethroughSpan(), isStrikethrough);
-            updateButtonStyle(strikethroughButton, isStrikethrough);
+            toggleStyle(contentEditText, new StrikethroughSpan(), isStrikethrough);
         });
     }
 
+    private void toggleStyle(EditText editText, Object style, boolean isEnabled) {
+        Editable text = editText.getText();
+        int start = editText.getSelectionStart();
+        int end = editText.getSelectionEnd();
+
+        if (isEnabled) {
+            text.setSpan(style, start, end, Editable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        } else {
+            Object[] spans = text.getSpans(start, end, style.getClass());
+            for (Object span : spans) {
+                text.removeSpan(span);
+            }
+        }
+    }
+
     private void setupTextWatcher() {
-        postContentEditText.addTextChangedListener(new TextWatcher() {
+        contentEditText.addTextChangedListener(new TextWatcher() {
             private int start, before, count;
 
             @Override
@@ -501,45 +416,6 @@ public class MyExistTextActivity extends AppCompatActivity {
         });
     }
 
-    private void applyCurrentStyleToSelection(int style, boolean enable) {
-        Editable text = postContentEditText.getText();
-        int start = postContentEditText.getSelectionStart();
-        int end = postContentEditText.getSelectionEnd();
-
-        if (enable) {
-            text.setSpan(new StyleSpan(style), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-        } else {
-            StyleSpan[] spans = text.getSpans(start, end, StyleSpan.class);
-            for (StyleSpan span : spans) {
-                if (span.getStyle() == style) {
-                    text.removeSpan(span);
-                }
-            }
-        }
-    }
-
-    private void applyCurrentSpanToSelection(Object span, boolean enable) {
-        Editable text = postContentEditText.getText();
-        int start = postContentEditText.getSelectionStart();
-        int end = postContentEditText.getSelectionEnd();
-
-        if (enable) {
-            text.setSpan(span, start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-        } else {
-            if (span instanceof UnderlineSpan) {
-                UnderlineSpan[] spans = text.getSpans(start, end, UnderlineSpan.class);
-                for (UnderlineSpan uSpan : spans) {
-                    text.removeSpan(uSpan);
-                }
-            } else if (span instanceof StrikethroughSpan) {
-                StrikethroughSpan[] spans = text.getSpans(start, end, StrikethroughSpan.class);
-                for (StrikethroughSpan sSpan : spans) {
-                    text.removeSpan(sSpan);
-                }
-            }
-        }
-    }
-
     private void applyCurrentStyles(Editable s, int start, int end) {
         if (isBold) s.setSpan(new StyleSpan(Typeface.BOLD), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         if (isItalic) s.setSpan(new StyleSpan(Typeface.ITALIC), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -547,46 +423,9 @@ public class MyExistTextActivity extends AppCompatActivity {
         if (isStrikethrough) s.setSpan(new StrikethroughSpan(), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
     }
 
-    private void updateButtonStyle(Button button, boolean isActive) {
-        if (isActive) {
-            button.setBackgroundColor(getResources().getColor(R.color.colorAccent));
-            button.setTextColor(getResources().getColor(android.R.color.white));
-        } else {
-            button.setBackgroundColor(getResources().getColor(android.R.color.darker_gray));
-            button.setTextColor(getResources().getColor(android.R.color.black));
-        }
-    }
-
-//    private void savePostToFirestore() {
-////        String category = categorySpinner.getSelectedItem().toString();
-//        String category = getIntent().getStringExtra("category");
-//        String title = postTitleEditText.getText().toString().trim();
-//        String content = postContentEditText.getText().toString();
-//
-//        if (title.isEmpty() || content.isEmpty()) {
-//            Toast.makeText(this, "제목과 내용을 입력해 주세요.", Toast.LENGTH_SHORT).show();
-//            return;
-//        }
-//
-//        Map<String, Object> post = new HashMap<>();
-//        post.put("category", category);
-//        post.put("title", title);
-//        post.put("content", content);
-//
-//        String htmlContent = convertToHtmlStyledContent(content);
-//        post.put("styledContent", htmlContent);
-//
-//        db.collection("posts").add(post)
-//                .addOnSuccessListener(documentReference -> {
-//                    Toast.makeText(MyExistTextActivity.this, "글이 성공적으로 저장되었습니다.", Toast.LENGTH_SHORT).show();
-//                    finish();
-//                })
-//                .addOnFailureListener(e -> Toast.makeText(MyExistTextActivity.this, "글 저장에 실패했습니다.", Toast.LENGTH_SHORT).show());
-//    }
-
     private String convertToHtmlStyledContent(String content) {
         StringBuilder htmlContent = new StringBuilder();
-        Editable text = postContentEditText.getText();
+        Editable text = contentEditText.getText();
 
         boolean isBold = false, isItalic = false, isUnderline = false, isStrikethrough = false;
 

@@ -13,7 +13,6 @@
         android:theme="@style/Theme.SSARY"
         tools:targetApi="31">
 
-        <!-- LoginActivity를 첫 화면으로 설정 -->
         <activity
             android:name=".LoginActivity"
             android:exported="true"
@@ -25,28 +24,20 @@
             </intent-filter>
         </activity>
 
-        <!-- MainActivity는 첫 화면에서 제외 -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.SSARY"/>
 
-        <!-- SignupActivity 등록 -->
         <activity android:name=".SignupActivity" />
-
         <activity android:name=".IdSearchActivity" />
-
         <activity android:name=".PwSearchActivity" />
         <activity android:name=".JobActivity" />
-
         <activity android:name=".MyPageActivity" />
-
         <activity android:name=".MyNewTextActivity" />
-
         <activity android:name=".MyExistTextActivity" />
 
-        <!-- !씨발 중요! -->
         <!-- 모든 자바 클래스 Activity는 아래 코드를 반드시 디폴트로 입력해주세요. -->
         <!--<activity android:name=".Activity" />-->
 
