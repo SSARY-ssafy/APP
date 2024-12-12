@@ -1,14 +1,22 @@
 package com.example.ssary;
 
+import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.text.Editable;
+import android.text.Spannable;
+import android.text.SpannableString;
 import android.text.TextWatcher;
+import android.text.style.ForegroundColorSpan;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.HorizontalScrollView;
@@ -59,6 +67,10 @@ public class MyPageActivity extends AppCompatActivity {
     private static final int REQUEST_CODE_WRITE_POST = 1; // 글 작성 요청 코드
     private static final int REQUEST_CODE_READ_UPDATE_DELETE = 2; // 읽기, 수정, 삭제 요청 코드
 
+    // 색상 맵
+    private Map<String, Integer> categoryColorMap;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -87,8 +99,53 @@ public class MyPageActivity extends AppCompatActivity {
         categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         categorySpinner.setAdapter(categoryAdapter);
 
-        titleAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, titleList);
+//        titleAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, titleList);
+//        titleListView.setAdapter(titleAdapter);
+
+        // 타이틀에 색상을 추가한 어댑터
+        titleAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, titleList) {
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                // 기본 View 생성
+                View view = super.getView(position, convertView, parent);
+                TextView textView = (TextView) view.findViewById(android.R.id.text1);
+
+                // 현재 제목 가져오기
+                String fullTitle = getItem(position);
+
+                if (fullTitle != null && fullTitle.startsWith("[")) {
+                    // 카테고리와 제목 분리
+                    int endIndex = fullTitle.indexOf("]");
+                    if (endIndex > 0) {
+                        String category = fullTitle.substring(1, endIndex); // [카테고리] 내부 내용
+                        String title = fullTitle.substring(endIndex + 2); // "] " 이후의 제목
+
+                        // SpannableString 생성
+                        SpannableString spannableTitle = new SpannableString(fullTitle);
+
+                        // []와 그 내부 내용에 색상 적용
+                        int color = categoryColorMap.getOrDefault(category, Color.BLACK);
+                        spannableTitle.setSpan(new ForegroundColorSpan(color), 0, endIndex + 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+                        textView.setText(spannableTitle);
+                    } else {
+                        // 기본 텍스트 설정 (올바르지 않은 포맷)
+                        textView.setText(fullTitle);
+                        textView.setTextColor(Color.BLACK);
+                    }
+                } else {
+                    // 기본 텍스트 설정 (카테고리 정보 없음)
+                    textView.setText(fullTitle);
+                    textView.setTextColor(Color.BLACK);
+                }
+
+                return view;
+            }
+        };
+
         titleListView.setAdapter(titleAdapter);
+
+
 
         // 검색을 위한 변수들 초기화
         searchEditText = findViewById(R.id.searchEditText);
@@ -98,18 +155,47 @@ public class MyPageActivity extends AppCompatActivity {
         // Firestore에서 카테고리 로드
         loadCategoriesFromFirestore();
 
+
+        // 필요한 카테고리별 색상을 추가 -> 추후에 스토어에 저장하는 방식으로 변경 필요 할 듯
+        categoryColorMap = new HashMap<>();
+        categoryColorMap.put("전체", Color.BLUE);
+        categoryColorMap.put("자소서", Color.YELLOW);
+        categoryColorMap.put("이름수정 테스트1", Color.GREEN);
+        categoryColorMap.put("파일업로드 테스트", Color.MAGENTA);
+        categoryColorMap.put("이력서 전략", Color.GRAY);
+        categoryColorMap.put("코딩테스트", Color.CYAN);
+
+
         // ----------------------- 리스너 영역 -----------------------------
 
         addCategoryButton.setOnClickListener(v -> showAddCategoryDialog());
 
         // 글 작성 버튼 클릭 리스너
         writeButton = findViewById(R.id.writeButton);
+//        writeButton.setOnClickListener(v -> {
+//            String selectedCategory = categorySpinner.getSelectedItem().toString();
+//            Intent intentToTextfile = new Intent(MyPageActivity.this, MyNewTextActivity.class);
+//            intentToTextfile.putExtra("category", selectedCategory);
+//            startActivity(intentToTextfile);
+//        });
+
+        // 수정된 글 작성 버튼 클릭 리스너
         writeButton.setOnClickListener(v -> {
-            String selectedCategory = categorySpinner.getSelectedItem().toString();
+            String selectedCategory;
+
+            // Spinner에서 선택된 값 가져오기
+            if (categorySpinner.getSelectedItem() != null) {
+                selectedCategory = categorySpinner.getSelectedItem().toString();
+            } else {
+                selectedCategory = "전체"; // 기본값 설정
+            }
+
+            // "전체"도 새 글을 작성할 수 있도록 허용
             Intent intentToTextfile = new Intent(MyPageActivity.this, MyNewTextActivity.class);
             intentToTextfile.putExtra("category", selectedCategory);
             startActivity(intentToTextfile);
         });
+
 
         // 카테고리 수정 버튼 클릭 리스너
         editCategoryButton.setOnClickListener(v -> {
@@ -137,7 +223,7 @@ public class MyPageActivity extends AppCompatActivity {
                 if (selectedCategory.equals("전체")) {
                     editCategoryButton.setVisibility(View.GONE);
                     deleteCategoryButton.setVisibility(View.GONE);
-                    writeButton.setVisibility(View.GONE); // 글 작성 버튼 숨기기
+                    writeButton.setVisibility(View.VISIBLE); // 글 작성 버튼 보이기
                     loadAllTitlesFromFirestore(); // 모든 글 로드
                 } else {
                     // 특정 카테고리가 선택되면 글 작성 버튼 보이기
@@ -314,6 +400,30 @@ public class MyPageActivity extends AppCompatActivity {
                     titleAdapter.notifyDataSetChanged();
                 });
     }
+
+    // 정렬 없이 불러오는 방식
+//    private void loadAllTitlesFromFirestore() {
+//        db.collection("posts")
+//                .get()
+//                .addOnCompleteListener(task -> {
+//                    if (task.isSuccessful() && task.getResult() != null) {
+//                        titleList.clear(); // 기존 리스트 초기화
+//
+//                        for (QueryDocumentSnapshot document : task.getResult()) {
+//                            String category = document.getString("category");
+//                            String title = document.getString("title");
+//
+//                            if (category != null && title != null) {
+//                                // 단순히 제목에 카테고리를 추가한 문자열 생성
+//                                titleList.add("[" + category + "] " + title);
+//                            }
+//                        }
+//                    } else {
+//                        Toast.makeText(this, "글 목록을 불러오는 데 실패했습니다.", Toast.LENGTH_SHORT).show();
+//                    }
+//                    titleAdapter.notifyDataSetChanged(); // 리스트 업데이트
+//                });
+//    }
 
     // Firestore에서 선택된 카테고리의 글 제목을 다시 불러오기 (카테고리 목록 재구성)
     private void loadTitlesFromFirestore(String category) {

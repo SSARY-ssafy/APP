@@ -7,20 +7,51 @@
     tools:context=".MyPageActivity"
     android:id="@+id/myPageLayout">
 
+    <RelativeLayout
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="@color/blue"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:id="@+id/toolbarTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="SSARY"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="@android:color/white"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="16dp" />
+
+        <ImageView
+            android:id="@+id/toolbarProfileIcon"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/ic_profile"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:layout_marginEnd="16dp" />
+    </RelativeLayout>
+
     <!-- 마이페이지 제목 -->
+
+    <!-- 카테고리 스피너 -->
     <TextView
         android:id="@+id/myPageTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginTop="64dp"
         android:text="마이페이지"
-        android:textSize="24sp"
         android:textColor="@color/black"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
+        android:textSize="24sp"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="50dp" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- 카테고리 스피너 -->
     <Spinner
         android:id="@+id/categorySpinner"
         android:layout_width="150dp"
@@ -68,15 +99,20 @@
     <!-- 글 작성 버튼 우측 하단 -->
     <Button
         android:id="@+id/writeButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="글 작성"
-        android:backgroundTint="@color/colorAccent"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:background="@drawable/bg_circle_blue"
+        android:drawableStart="@drawable/ic_new"
+        android:drawablePadding="4dp"
+        android:gravity="center"
+        android:padding="12dp"
+        android:text="글"
         android:textColor="@android:color/white"
-        android:textSize="16sp"
-        android:layout_margin="16dp"
+        android:textSize="12sp"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginRight="16dp"
+        android:layout_marginBottom="48dp"/>
 
     <!-- 글 목록 -->
     <ListView
