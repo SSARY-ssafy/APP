@@ -1,16 +1,18 @@
 package com.example.ssary;
 
 import android.content.Intent;
-import android.graphics.Paint;
+import android.database.Cursor;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
+import android.provider.OpenableColumns;
 import android.text.Editable;
 import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.style.StrikethroughSpan;
 import android.text.style.StyleSpan;
 import android.text.style.UnderlineSpan;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -20,30 +22,29 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.text.TextWatcher;
 
-import androidx.annotation.Nullable;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 public class MyNewTextActivity extends AppCompatActivity {
 
-    private static final int PICK_FILE_REQUEST = 1;
-
-    private TextView categoryTextView, uploadedFileTextView;
     private EditText titleEditText, contentEditText;
     private LinearLayout uploadedFileContainer;
-    private ImageView boldButton, italicButton, underlineButton, strikethroughButton, uploadFileButton, imageButton, changeFileButton, deleteFileButton;
-    private Button submitPostButton;
+    private ImageView boldButton, italicButton, underlineButton, strikethroughButton, imageButton;
     private FirebaseFirestore db;
     private FirebaseStorage storage;
-    private Uri fileUri;
-    private String fileName;
+    private final List<Uri> fileUris = new ArrayList<>();
+    private final List<String> fileNames = new ArrayList<>();
 
     private boolean isBold = false, isItalic = false, isUnderline = false, isStrikethrough = false;
 
@@ -53,9 +54,9 @@ public class MyNewTextActivity extends AppCompatActivity {
         setContentView(R.layout.activity_my_new_text);
 
         db = FirebaseFirestore.getInstance();
-        storage = FirebaseStorage.getInstance(); // Firebase Storage 초기화
+        storage = FirebaseStorage.getInstance();
 
-        categoryTextView = findViewById(R.id.categoryTextView);
+        TextView categoryTextView = findViewById(R.id.categoryTextView);
         titleEditText = findViewById(R.id.titleEditText);
         contentEditText = findViewById(R.id.contentEditText);
         uploadedFileContainer = findViewById(R.id.uploadedFileContainer);
@@ -63,53 +64,18 @@ public class MyNewTextActivity extends AppCompatActivity {
         italicButton = findViewById(R.id.italicButton);
         underlineButton = findViewById(R.id.underlineButton);
         strikethroughButton = findViewById(R.id.strikethroughButton);
-        uploadFileButton = findViewById(R.id.uploadFileButton);
+        ImageView uploadFileButton = findViewById(R.id.uploadFileButton);
         imageButton = findViewById(R.id.imageButton);
-        submitPostButton = findViewById(R.id.submitPostButton);
-        changeFileButton = findViewById(R.id.changeFileButton);
-        deleteFileButton = findViewById(R.id.deleteFileButton);
-        uploadedFileTextView = findViewById(R.id.uploadedFileTextView);
-        uploadedFileTextView.setPaintFlags(uploadedFileTextView.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
+        Button submitPostButton = findViewById(R.id.submitPostButton);
 
-        uploadFileButton.setOnClickListener(v -> selectFile());
-        changeFileButton.setOnClickListener(v -> selectFile());  // 바로 새 파일 선택
-        deleteFileButton.setOnClickListener(v -> {
-            fileUri = null;
-            uploadedFileTextView.setText("업로드된 파일이 없습니다.");
-            uploadedFileContainer.setVisibility(View.GONE);
-        });
+        uploadFileButton.setOnClickListener(v -> selectFiles());
 
-        // 인텐트에서 카테고리 및 글 정보를 받아와 설정
         String category = getIntent().getStringExtra("category");
-        String title = getIntent().getStringExtra("title");
-        String content = getIntent().getStringExtra("content");
-        String documentId = getIntent().getStringExtra("documentId");
-
-        // 카테고리 이름을 categoryTextView에 설정
         if (category != null && !category.isEmpty()) {
             categoryTextView.setText("카테고리: " + category);
         } else {
             categoryTextView.setText("카테고리 없음");
         }
-
-        if (title != null && content != null) {
-            titleEditText.setText(title);
-            contentEditText.setText(content);
-            boolean isEditMode = true;
-            submitPostButton.setText("글 수정");
-        }
-
-        // 파일 이름 클릭 시 열기
-        uploadedFileTextView.setOnClickListener(v -> {
-            if (fileUri != null) {
-                Intent intent = new Intent(Intent.ACTION_VIEW);
-                intent.setDataAndType(fileUri, "*/*");
-                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                startActivity(intent);
-            } else {
-                Toast.makeText(this, "업로드된 파일이 없습니다.", Toast.LENGTH_SHORT).show();
-            }
-        });
 
         submitPostButton.setOnClickListener(v -> {
             String postTitle = titleEditText.getText().toString().trim();
@@ -118,12 +84,10 @@ public class MyNewTextActivity extends AppCompatActivity {
             if (postTitle.isEmpty() || postContent.isEmpty()) {
                 Toast.makeText(MyNewTextActivity.this, "제목과 내용을 입력해 주세요.", Toast.LENGTH_SHORT).show();
             } else {
-                if (fileUri != null) {
-                    // 파일이 선택된 경우 Firebase Storage에 업로드한 후 Firestore에 파일 이름과 URL 함께 저장
-                    uploadFileToFirebase(postTitle, postContent, category);
+                if (!fileUris.isEmpty()) {
+                    uploadFileToStorage(postTitle, postContent, category);
                 } else {
-                    // 파일이 선택되지 않은 경우, 파일 이름과 URL을 null로 저장
-                    savePostToFirestore(category, postTitle, postContent, null, null);
+                    savePostToDataBase(category, postTitle, postContent, null);
                 }
             }
         });
@@ -145,15 +109,14 @@ public class MyNewTextActivity extends AppCompatActivity {
         });
     }
 
-    private void savePostToFirestore(String category, String title, String content, String fileName, String fileUrl) {
+    private void savePostToDataBase(String category, String title, String content, List<Map<String, String>> fileData) {
         Map<String, Object> post = new HashMap<>();
         String htmlContent = convertToHtmlStyledContent(content);
 
         post.put("category", category);
         post.put("title", title);
         post.put("content", htmlContent);
-        post.put("fileName", fileName);
-        post.put("fileUrl", fileUrl);
+        post.put("files", fileData);
 
         db.collection("posts").add(post)
                 .addOnSuccessListener(documentReference -> {
@@ -166,36 +129,146 @@ public class MyNewTextActivity extends AppCompatActivity {
                 .addOnFailureListener(e -> Toast.makeText(MyNewTextActivity.this, "글 저장에 실패했습니다.", Toast.LENGTH_SHORT).show());
     }
 
-    private void uploadFileToFirebase(String title, String content, String category) {
-        fileName = fileUri.getLastPathSegment();  // 원본 파일 이름
-        String uniqueFileName = UUID.randomUUID().toString() + "_" + fileName; // 고유 식별자 추가
-        StorageReference fileRef = storage.getReference().child("uploads/" + uniqueFileName);
+    private void uploadFileToStorage(String title, String content, String category) {
+        List<Map<String, String>> fileData = new ArrayList<>();
+        int totalFiles = fileUris.size();
+        final int[] completedFiles = {0};
 
-        fileRef.putFile(fileUri)
-                .addOnSuccessListener(taskSnapshot -> fileRef.getDownloadUrl().addOnSuccessListener(uri -> {
-                    String uploadedFileUrl = uri.toString();
-                    savePostToFirestore(category, title, content, fileName, uploadedFileUrl); // Firestore에 파일 이름과 URL 저장
-                }))
-                .addOnFailureListener(e -> {
-                    Toast.makeText(MyNewTextActivity.this, "파일 업로드 실패", Toast.LENGTH_SHORT).show();
-                });
+        for (int i = 0; i < totalFiles; i++) {
+            Uri fileUri = fileUris.get(i);
+            String fileName = fileNames.get(i);
+            String fileExtension = getFileExtension(fileUri);
+
+            String uniqueFileName = UUID.randomUUID().toString() + "_" + fileName;
+            StorageReference fileRef = storage.getReference().child("uploads/" + uniqueFileName);
+
+            fileRef.putFile(fileUri)
+                    .addOnSuccessListener(taskSnapshot -> fileRef.getDownloadUrl().addOnSuccessListener(uri -> {
+                        Map<String, String> fileInfo = new HashMap<>();
+                        fileInfo.put("fileName", fileName);
+                        fileInfo.put("fileExtension", fileExtension != null ? fileExtension : "unknown");
+                        fileInfo.put("fileUrl", uri.toString());
+                        fileData.add(fileInfo);
+
+                        completedFiles[0]++;
+                        if(completedFiles[0] == totalFiles) {
+                            savePostToDataBase(category, title, content, fileData);
+                        }
+                    }))
+                    .addOnFailureListener(e -> {
+                        Toast.makeText(MyNewTextActivity.this, "파일 업로드 실패: " + fileName, Toast.LENGTH_SHORT).show();
+                    });
+        }
     }
 
-    private void selectFile() {
+    private String getFileExtension(Uri uri) {
+        String extension = "";
+        String mimeType = getContentResolver().getType(uri);
+        if (mimeType != null) {
+            extension = mimeType.substring(mimeType.lastIndexOf("/") + 1);
+        } else {
+            String path = uri.getPath();
+            int dotIndex = path != null ? path.lastIndexOf('.') : -1;
+            if (dotIndex != -1) {
+                extension = path.substring(dotIndex + 1);
+            }
+        }
+        return extension;
+    }
+
+    private void selectFiles() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
-        startActivityForResult(intent, PICK_FILE_REQUEST);
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+        filePickerLauncher.launch(intent);
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == PICK_FILE_REQUEST && resultCode == RESULT_OK && data != null && data.getData() != null) {
-            fileUri = data.getData();
-            fileName = fileUri.getLastPathSegment();
-            uploadedFileTextView.setText(fileName != null ? fileName : "파일 이름을 불러올 수 없음");
-            uploadedFileContainer.setVisibility(View.VISIBLE);
+    private final ActivityResultLauncher<Intent> filePickerLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    handleFileSelection(result.getData());
+                }
+            }
+    );
+
+    private void handleFileSelection(Intent data) {
+        if (data.getClipData() != null) {
+           int count = data.getClipData().getItemCount();
+           for (int i = 0; i < count; i++) {
+               Uri fileUri = data.getClipData().getItemAt(i).getUri();
+               String fileName = getFileName(fileUri);
+               fileUris.add(fileUri);
+               fileNames.add(fileName != null ? fileName : "파일 이름 없음");
+           }
+        } else if (data.getData() != null) {
+            Uri fileUri = data.getData();
+            String fileName = getFileName(fileUri);
+            fileUris.add(fileUri);
+            fileNames.add(fileName != null ? fileName : "파일 이름 없음");
         }
+
+        updateUploadedFilesUI();
+    }
+
+    private String getFileName(Uri uri) {
+        String fileName = null;
+        if (uri.getScheme().equals("content")) {
+            try (Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                    if (nameIndex != -1) {
+                        fileName = cursor.getString(nameIndex);
+                    }
+                }
+            }
+        }
+
+        if (fileName == null) {
+            String path = uri.getPath();
+            int lastSlashIndex = path != null ? path.lastIndexOf('/') : -1;
+            if (lastSlashIndex != -1) {
+                fileName = path.substring(lastSlashIndex + 1);
+            }
+        }
+
+        return fileName;
+    }
+
+
+    private void updateUploadedFilesUI() {
+        uploadedFileContainer.removeAllViews();
+
+        for (int i = 0; i < fileNames.size(); i++) {
+            String fileName = fileNames.get(i);
+            Uri fileUri = fileUris.get(i);
+            int finalI = i;
+
+            View fileItemView = LayoutInflater.from(this).inflate(R.layout.my_new_text_uploaded_file, uploadedFileContainer, false);
+
+            TextView fileTextView = fileItemView.findViewById(R.id.uploadedFileTextView);
+            fileTextView.setText(fileName);
+            fileTextView.setOnClickListener(v -> openFile(fileUri));
+
+            ImageView deleteFileButton = fileItemView.findViewById(R.id.deleteFileButton);
+            deleteFileButton.setOnClickListener(v -> {
+                fileUris.remove(finalI);
+                fileNames.remove(finalI);
+                updateUploadedFilesUI();
+                Toast.makeText(this, "파일이 삭제되었습니다: " + fileName, Toast.LENGTH_SHORT).show();
+            });
+
+            uploadedFileContainer.addView(fileItemView);
+        }
+
+        uploadedFileContainer.setVisibility(fileUris.isEmpty() ? View.GONE : View.VISIBLE);
+    }
+
+    private void openFile(Uri uri) {
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+        intent.setDataAndType(uri, "*/*");
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        startActivity(intent);
     }
 
     private void applyCurrentStyleToInput() {
@@ -292,12 +365,12 @@ public class MyNewTextActivity extends AppCompatActivity {
 
     private void setupTextWatcher() {
         contentEditText.addTextChangedListener(new TextWatcher() {
-            private int start, before, count;
+            private int start;
+            private int count;
 
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
                 this.start = start;
-                this.before = count;
             }
 
             @Override
