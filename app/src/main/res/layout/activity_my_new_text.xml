@@ -184,59 +184,12 @@
         android:id="@+id/uploadedFileContainer"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
+        android:orientation="vertical"
         android:layout_marginTop="16dp"
         app:layout_constraintTop_toBottomOf="@id/formattingButtonsContainer"
         app:layout_constraintStart_toStartOf="parent"
         android:layout_marginStart="16dp"
-        android:visibility="gone">
-
-        <!-- 파일 아이콘 -->
-        <ImageView
-            android:id="@+id/fileIcon"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:src="@drawable/ic_folderopen"
-            android:contentDescription="파일 아이콘" />
-
-        <!-- 업로드된 파일 이름 -->
-        <TextView
-            android:id="@+id/uploadedFileTextView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:text="파일 이름"
-            android:textColor="@color/blue"
-            android:textStyle="bold"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:clickable="true"
-            android:focusable="true" />
-
-        <!-- 수정 버튼 -->
-        <ImageView
-            android:id="@+id/changeFileButton"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:src="@drawable/ic_edit"
-            android:contentDescription="파일 수정"
-            android:layout_marginStart="8dp"
-            android:clickable="true"
-            android:focusable="true" />
-
-        <!-- 삭제 버튼 -->
-        <ImageView
-            android:id="@+id/deleteFileButton"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:src="@drawable/ic_delete"
-            android:contentDescription="파일 삭제"
-            android:layout_marginStart="8dp"
-            android:clickable="true"
-            android:focusable="true" />
-
-    </LinearLayout>
+        android:visibility="gone" />
 
     <!-- 내용 입력 -->
     <EditText
