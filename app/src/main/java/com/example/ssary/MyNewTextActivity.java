@@ -14,10 +14,12 @@ import android.text.style.StyleSpan;
 import android.text.style.UnderlineSpan;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.text.TextWatcher;
@@ -43,8 +45,12 @@ public class MyNewTextActivity extends AppCompatActivity {
     private ImageView boldButton, italicButton, underlineButton, strikethroughButton, imageButton;
     private FirebaseFirestore db;
     private FirebaseStorage storage;
+  
     private final List<Uri> fileUris = new ArrayList<>();
     private final List<String> fileNames = new ArrayList<>();
+    private Spinner categorySpinner;
+    private ArrayList<String> categoryList;
+    private ArrayAdapter<String> categoryAdapter;
 
     private boolean isBold = false, isItalic = false, isUnderline = false, isStrikethrough = false;
 
@@ -70,16 +76,24 @@ public class MyNewTextActivity extends AppCompatActivity {
 
         uploadFileButton.setOnClickListener(v -> selectFiles());
 
-        String category = getIntent().getStringExtra("category");
-        if (category != null && !category.isEmpty()) {
-            categoryTextView.setText("카테고리: " + category);
-        } else {
-            categoryTextView.setText("카테고리 없음");
+        categorySpinner = findViewById(R.id.categorySpinner); // XML에 정의된 스피너
+        categoryList = new ArrayList<>();
+        categoryList.add("카테고리 선택"); // 기본 카테고리
+        loadCategoriesFromFirestore();
+
+        categoryAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, categoryList);
+        categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        categorySpinner.setAdapter(categoryAdapter);
+
+        String selectedCategory = getIntent().getStringExtra("category");
+        if (selectedCategory != null && !selectedCategory.isEmpty()) {
+            categorySpinner.setSelection(categoryList.indexOf(selectedCategory));
         }
 
         submitPostButton.setOnClickListener(v -> {
             String postTitle = titleEditText.getText().toString().trim();
             String postContent = contentEditText.getText().toString().trim();
+            String category = categorySpinner.getSelectedItem().toString(); // 선택된 카테고리 가져오기
 
             if (postTitle.isEmpty() || postContent.isEmpty()) {
                 Toast.makeText(MyNewTextActivity.this, "제목과 내용을 입력해 주세요.", Toast.LENGTH_SHORT).show();
@@ -108,6 +122,31 @@ public class MyNewTextActivity extends AppCompatActivity {
             public void afterTextChanged(Editable s) {}
         });
     }
+
+    private void loadCategoriesFromFirestore() {
+        db.collection("categories")
+                .get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    for (com.google.firebase.firestore.QueryDocumentSnapshot document : queryDocumentSnapshots) {
+                        String category = document.getString("name");
+                        if (category != null && !categoryList.contains(category)) {
+                            categoryList.add(category);
+                        }
+                    }
+                    categoryAdapter.notifyDataSetChanged();
+                  
+                    String selectedCategory = getIntent().getStringExtra("category");
+                    if (selectedCategory != null && !selectedCategory.isEmpty()) {
+                        int position = categoryList.indexOf(selectedCategory);
+                        if (position >= 0) {
+                            categorySpinner.setSelection(position);
+                        }
+                    }
+                })
+                .addOnFailureListener(e -> Toast.makeText(this, "카테고리를 불러오는 데 실패했습니다.", Toast.LENGTH_SHORT).show());
+    }
+
+
 
     private void savePostToDataBase(String category, String title, String content, List<Map<String, String>> fileData) {
         Map<String, Object> post = new HashMap<>();
