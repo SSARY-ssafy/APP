@@ -1,0 +1,52 @@
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:layout_marginTop="16dp">
+
+    <!-- 파일 아이콘 -->
+    <ImageView
+        android:id="@+id/fileIcon"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:src="@drawable/ic_folderopen"
+        android:contentDescription="파일 아이콘" />
+
+    <!-- 업로드된 파일 이름 -->
+    <TextView
+        android:id="@+id/uploadedFileTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:text="파일 이름"
+        android:textColor="@color/blue"
+        android:textStyle="bold"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:clickable="true"
+        android:focusable="true" />
+
+    <!-- 다운로드 버튼 (읽기 모드에서만 표시) -->
+    <ImageView
+        android:id="@+id/downloadFileButton"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:src="@drawable/ic_download"
+        android:contentDescription="다운로드"
+        android:layout_marginStart="8dp"
+        android:clickable="true"
+        android:focusable="true" />
+
+    <!-- 삭제 버튼 -->
+    <ImageView
+        android:id="@+id/deleteFileButton"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:src="@drawable/ic_delete"
+        android:contentDescription="파일 삭제"
+        android:layout_marginStart="8dp"
+        android:clickable="true"
+        android:focusable="true" />
+</LinearLayout>
