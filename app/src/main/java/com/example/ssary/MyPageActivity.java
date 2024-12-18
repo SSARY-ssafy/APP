@@ -30,11 +30,16 @@ import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FieldPath;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +54,7 @@ public class MyPageActivity extends AppCompatActivity {
     private Button writeButton;
     private Button editCategoryButton; // 카테고리 수정 버튼
     private Button deleteCategoryButton; // 카테고리 삭제 버튼
+    private Button changeColorButton; // 카테고리 색상 변경 버튼
     private ListView titleListView;
 
     // 카테고리 리스트와 제목 리스트
@@ -63,12 +69,28 @@ public class MyPageActivity extends AppCompatActivity {
 
     // Firestore 인스턴스
     private FirebaseFirestore db;
+    private FirebaseAuth auth;
 
     private static final int REQUEST_CODE_WRITE_POST = 1; // 글 작성 요청 코드
     private static final int REQUEST_CODE_READ_UPDATE_DELETE = 2; // 읽기, 수정, 삭제 요청 코드
 
     // 색상 맵
     private Map<String, Integer> categoryColorMap;
+
+    private final List<String> fixedColors = Arrays.asList(
+            "#FF5733", // Red
+            "#33FF57", // Green
+            "#3357FF", // Blue
+            "#FF33FF", // Magenta
+            "#33FFFF", // Cyan
+            "#FFFF33", // Yellow
+            "#FFA500", // Orange
+            "#800080", // Purple
+            "#808080", // Gray
+            "#000000"  // Black
+    );
+
+    private Map<String, Integer> categoryColorCache = new HashMap<>();
 
 
     @Override
@@ -78,10 +100,12 @@ public class MyPageActivity extends AppCompatActivity {
 
         // Firestore 인스턴스 초기화
         db = FirebaseFirestore.getInstance();
+        auth = FirebaseAuth.getInstance();
 
         // 카테고리 스피너 초기화
         categorySpinner = findViewById(R.id.categorySpinner);
         titleListView = findViewById(R.id.titleListView);
+        changeColorButton = findViewById(R.id.changeColorButton);
 
         addCategoryButton = findViewById(R.id.addCategoryButton);
         editCategoryButton = findViewById(R.id.editCategoryButton);
@@ -99,6 +123,9 @@ public class MyPageActivity extends AppCompatActivity {
         categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         categorySpinner.setAdapter(categoryAdapter);
 
+        // 색상 데이터 미리 로드
+        loadCategoryColors();
+
 //        titleAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, titleList);
 //        titleListView.setAdapter(titleAdapter);
 
@@ -106,35 +133,27 @@ public class MyPageActivity extends AppCompatActivity {
         titleAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, titleList) {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
-                // 기본 View 생성
                 View view = super.getView(position, convertView, parent);
-                TextView textView = (TextView) view.findViewById(android.R.id.text1);
+                TextView textView = view.findViewById(android.R.id.text1);
 
-                // 현재 제목 가져오기
                 String fullTitle = getItem(position);
-
                 if (fullTitle != null && fullTitle.startsWith("[")) {
-                    // 카테고리와 제목 분리
                     int endIndex = fullTitle.indexOf("]");
                     if (endIndex > 0) {
-                        String category = fullTitle.substring(1, endIndex); // [카테고리] 내부 내용
-                        String title = fullTitle.substring(endIndex + 2); // "] " 이후의 제목
+                        String category = fullTitle.substring(1, endIndex);
 
-                        // SpannableString 생성
-                        SpannableString spannableTitle = new SpannableString(fullTitle);
+                        // 캐싱된 색상 사용
+                        int color = categoryColorCache.getOrDefault(category, Color.BLACK);
 
-                        // []와 그 내부 내용에 색상 적용
-                        int color = categoryColorMap.getOrDefault(category, Color.BLACK);
-                        spannableTitle.setSpan(new ForegroundColorSpan(color), 0, endIndex + 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-
-                        textView.setText(spannableTitle);
+                        // 스팬 적용
+                        SpannableString styledText = new SpannableString(fullTitle);
+                        styledText.setSpan(new ForegroundColorSpan(color), 0, endIndex + 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        textView.setText(styledText);
                     } else {
-                        // 기본 텍스트 설정 (올바르지 않은 포맷)
                         textView.setText(fullTitle);
                         textView.setTextColor(Color.BLACK);
                     }
                 } else {
-                    // 기본 텍스트 설정 (카테고리 정보 없음)
                     textView.setText(fullTitle);
                     textView.setTextColor(Color.BLACK);
                 }
@@ -142,6 +161,8 @@ public class MyPageActivity extends AppCompatActivity {
                 return view;
             }
         };
+
+
 
         titleListView.setAdapter(titleAdapter);
 
@@ -164,6 +185,9 @@ public class MyPageActivity extends AppCompatActivity {
         categoryColorMap.put("파일업로드 테스트", Color.MAGENTA);
         categoryColorMap.put("이력서 전략", Color.GRAY);
         categoryColorMap.put("코딩테스트", Color.CYAN);
+
+        // Firestore 기본값 보장
+        ensureCategoryColorsExist();
 
 
         // ----------------------- 리스너 영역 -----------------------------
@@ -213,6 +237,15 @@ public class MyPageActivity extends AppCompatActivity {
             }
         });
 
+        changeColorButton.setOnClickListener(v -> {
+            String selectedCategory = categorySpinner.getSelectedItem().toString();
+            if (!selectedCategory.equals("전체")) {
+                showFixedColorPickerDialog(selectedCategory);
+            } else {
+                Toast.makeText(MyPageActivity.this, "카테고리를 선택하세요.", Toast.LENGTH_SHORT).show();
+            }
+        });
+
         // 카테고리 선택 시 Firestore에서 글 제목 로드
         categorySpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
@@ -221,14 +254,22 @@ public class MyPageActivity extends AppCompatActivity {
 
                 // "전체"가 선택되었을 때 글 작성 버튼 숨기기
                 if (selectedCategory.equals("전체")) {
+                    addCategoryButton.setVisibility(View.VISIBLE);
                     editCategoryButton.setVisibility(View.GONE);
                     deleteCategoryButton.setVisibility(View.GONE);
+
+                    changeColorButton.setVisibility(View.GONE);
+
                     writeButton.setVisibility(View.VISIBLE); // 글 작성 버튼 보이기
                     loadAllTitlesFromFirestore(); // 모든 글 로드
                 } else {
                     // 특정 카테고리가 선택되면 글 작성 버튼 보이기
+                    addCategoryButton.setVisibility(View.VISIBLE);
                     editCategoryButton.setVisibility(View.VISIBLE);
                     deleteCategoryButton.setVisibility(View.VISIBLE);
+
+                    changeColorButton.setVisibility(View.VISIBLE);
+
                     writeButton.setVisibility(View.VISIBLE); // 글 작성 버튼 보이기
                     loadTitlesFromFirestore(selectedCategory); // 특정 카테고리의 글만 로드
                 }
@@ -743,5 +784,112 @@ public class MyPageActivity extends AppCompatActivity {
             }
         }
     }
+
+
+    private void showFixedColorPickerDialog(String category) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("색상을 선택하세요");
+
+        ArrayAdapter<String> colorAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, fixedColors) {
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                View view = super.getView(position, convertView, parent);
+                TextView textView = view.findViewById(android.R.id.text1);
+                textView.setBackgroundColor(Color.parseColor(fixedColors.get(position)));
+                textView.setText("");
+                textView.setHeight(100);
+                return view;
+            }
+        };
+
+        builder.setAdapter(colorAdapter, (dialog, which) -> {
+            String selectedColor = fixedColors.get(which);
+            updateCategoryColors(category, selectedColor);
+            loadCategoryColors();
+        });
+
+        builder.setNegativeButton("취소", (dialog, which) -> dialog.dismiss());
+        builder.show();
+    }
+
+    private void updateCategoryColors(String category, String color) {
+        FirebaseUser user = auth.getCurrentUser();
+        if (user == null) {
+            Toast.makeText(this, "사용자 정보를 확인할 수 없습니다.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        db.collection("users").document(user.getUid())
+                .update("categoryColors." + category, color)
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(this, "카테고리 색상이 업데이트되었습니다.", Toast.LENGTH_SHORT).show();
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(this, "카테고리 색상 업데이트에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                });
+    }
+
+    private void ensureCategoryColorsExist() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            Toast.makeText(this, "사용자 정보를 확인할 수 없습니다.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String userId = user.getUid();
+
+        db.collection("users").document(userId)
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (!documentSnapshot.exists() || !documentSnapshot.contains("categoryColors")) {
+                        // 기본 카테고리 색상 값 추가
+                        Map<String, String> defaultColors = new HashMap<>();
+                        defaultColors.put("전체", "#000000"); // 검정
+                        defaultColors.put("자소서", "#FF5733"); // 빨강
+
+                        // 사용자 문서 생성 또는 업데이트
+                        db.collection("users").document(userId)
+                                .update("categoryColors", defaultColors)
+                                .addOnSuccessListener(aVoid -> {
+                                    Log.d("Firestore", "기본 카테고리 색상 추가 완료");
+                                })
+                                .addOnFailureListener(e -> {
+                                    Toast.makeText(this, "기본 카테고리 색상 추가 실패", Toast.LENGTH_SHORT).show();
+                                });
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(this, "사용자 데이터를 불러오는 데 실패했습니다.", Toast.LENGTH_SHORT).show();
+                });
+    }
+
+    private void loadCategoryColors() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            Toast.makeText(this, "사용자 정보를 확인할 수 없습니다.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        db.collection("users").document(user.getUid())
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        Map<String, String> categoryColors = (Map<String, String>) documentSnapshot.get("categoryColors");
+                        if (categoryColors != null) {
+                            // 캐싱
+                            categoryColorCache.clear();
+                            for (Map.Entry<String, String> entry : categoryColors.entrySet()) {
+                                categoryColorCache.put(entry.getKey(), Color.parseColor(entry.getValue()));
+                            }
+                            // 어댑터에 알림
+                            titleAdapter.notifyDataSetChanged();
+                        }
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(this, "카테고리 색상을 불러오는 데 실패했습니다.", Toast.LENGTH_SHORT).show();
+                });
+    }
+
 
 }
