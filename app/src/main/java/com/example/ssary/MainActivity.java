@@ -47,9 +47,9 @@ public class MainActivity extends AppCompatActivity {
         });
 
         // 캘린더 이동 버튼 클릭 시
-        TextView calendarButton = findViewById(R.id.calender_button);
+        TextView calendarButton = findViewById(R.id.calendar_button);
         calendarButton.setOnClickListener(view -> {
-            Intent intent = new Intent(MainActivity.this, MainActivity.class);
+            Intent intent = new Intent(MainActivity.this, CalendarActivity.class);
             startActivity(intent);
         });
 
