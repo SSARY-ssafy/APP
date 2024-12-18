@@ -5,14 +5,15 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import android.app.Dialog;
 import android.content.Intent;
-import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
 import android.widget.CheckBox;
+import android.widget.EditText;
 import android.widget.ImageView;
-import android.widget.SearchView;
 import android.widget.TextView;
 
 import com.google.android.flexbox.FlexDirection;
@@ -32,132 +33,76 @@ import java.util.List;
 import java.util.Locale;
 
 public class JobActivity extends AppCompatActivity {
+
     private RecyclerView recyclerView;
     private JobsAdapter adapter;
     private DatabaseReference databaseReference;
     private List<Job> jobList = new ArrayList<>();
     private List<Job> filteredJobs = new ArrayList<>();
-    private List<Job> displayedJobs = new ArrayList<>();
     private CheckBox checkBoxOnlyActive;
-    private SearchView searchView;
-    private TextView pageNumberText;
-    private ImageView nextPageButton, prevPageButton;
-    private int currentPage = 0;
-    private final int itemsPerPage = 30;
+    private EditText searchEditText;
+    private ImageView searchIcon, backButton;
     private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
     private boolean showAllJobs = false;
-    private ImageView backButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_job);
 
+        // View 초기화
         recyclerView = findViewById(R.id.recyclerview);
+        checkBoxOnlyActive = findViewById(R.id.checkbox_only_active);
+        searchEditText = findViewById(R.id.searchEditText);
+        searchIcon = findViewById(R.id.searchIcon);
+        backButton = findViewById(R.id.back);
 
-        // FlexboxLayoutManager 설정
+        // 뒤로 가기 버튼 동작
+        backButton.setOnClickListener(v -> onBackPressed());
+
+        // RecyclerView 설정
         FlexboxLayoutManager flexboxLayoutManager = new FlexboxLayoutManager(this);
         flexboxLayoutManager.setFlexDirection(FlexDirection.ROW);
         flexboxLayoutManager.setJustifyContent(JustifyContent.CENTER);
         recyclerView.setLayoutManager(flexboxLayoutManager);
 
-        checkBoxOnlyActive = findViewById(R.id.checkbox_only_active);
-        searchView = findViewById(R.id.search);
-        pageNumberText = findViewById(R.id.page_number);
-        nextPageButton = findViewById(R.id.next_page_button);
-        prevPageButton = findViewById(R.id.prev_page_button);
-        backButton = findViewById(R.id.back);
-
-        backButton.setOnClickListener(v -> onBackPressed());
-
-        adapter = new JobsAdapter(displayedJobs, this);
+        adapter = new JobsAdapter(filteredJobs, this);
         recyclerView.setAdapter(adapter);
 
-        // 어댑터 아이템 클릭 시 Dialog 표시 설정
+        // 아이템 클릭 리스너 설정
         adapter.setOnItemClickListener(this::showJobInfoDialog);
 
-        fetchJobs();
+        // 검색 아이콘 클릭 시 검색창 표시/숨김
+        searchIcon.setOnClickListener(v -> {
+            if (searchEditText.getVisibility() == View.GONE) {
+                searchEditText.setVisibility(View.VISIBLE);
+            } else {
+                searchEditText.setVisibility(View.GONE);
+            }
+        });
 
+        // 검색창 입력 시 필터링
+        searchEditText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                searchJobs(s.toString());
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {}
+        });
+
+        // "모든 공고 보기" 체크박스 동작
         checkBoxOnlyActive.setOnCheckedChangeListener((buttonView, isChecked) -> {
             showAllJobs = isChecked;
             filterJobs();
-            currentPage = 0;
-            displayPage(currentPage);
         });
 
-        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-            @Override
-            public boolean onQueryTextSubmit(String query) {
-                return false;
-            }
-
-            @Override
-            public boolean onQueryTextChange(String newText) {
-                searchJobs(newText);
-                return true;
-            }
-        });
-
-        prevPageButton.setOnClickListener(v -> {
-            if (currentPage > 0) {
-                currentPage--;
-                displayPage(currentPage);
-            }
-        });
-
-        nextPageButton.setOnClickListener(v -> {
-            if ((currentPage + 1) * itemsPerPage < filteredJobs.size()) {
-                currentPage++;
-                displayPage(currentPage);
-            }
-        });
+        fetchJobs();
     }
-
-    // Dialog 생성 및 표시 메서드
-    private void showJobInfoDialog(Job job) {
-        Dialog dialog = new Dialog(this);
-        dialog.setContentView(R.layout.company_info); // company_info.xml 레이아웃 설정
-
-        // company_info.xml의 요소 초기화
-        TextView titleTextView = dialog.findViewById(R.id.titleTextView);
-        TextView descriptionTextView = dialog.findViewById(R.id.descriptionTextView);
-        TextView linkButton = dialog.findViewById(R.id.linkButton);
-        ImageView favoriteButton = dialog.findViewById(R.id.favoriteButton);
-
-        // Job 객체의 데이터로 Dialog 설정
-        titleTextView.setText("# " + job.getCompanyName());
-        descriptionTextView.setText(
-                "회사명: " + job.getCompanyName() + "\n"
-                        + "채용 직무: " + job.getJobPosition() + "\n"
-                        + "제출 시작: " + job.getStartDate() + "\n"
-                        + "제출 마감: " + job.getEndDate()
-        );
-
-        // 초기 즐겨찾기 상태 설정
-        boolean[] isFavorite = {false}; // 배열로 선언하여 내부 클래스에서도 값 변경 가능
-        favoriteButton.setImageResource(R.drawable.star_empty); // 초기 상태를 비어있는 별로 설정
-
-        // 즐겨찾기 버튼 클릭 시 아이콘 변경
-        favoriteButton.setOnClickListener(v -> {
-            if (isFavorite[0]) {
-                favoriteButton.setImageResource(R.drawable.star_empty);
-            } else {
-                favoriteButton.setImageResource(R.drawable.star_full);
-            }
-            isFavorite[0] = !isFavorite[0]; // 상태 토글
-        });
-
-        // 링크 버튼 클릭 시 채용 공고 사이트로 이동
-        linkButton.setOnClickListener(v -> {
-            String jobSiteUrl = job.getJobSite();
-            if (jobSiteUrl != null && !jobSiteUrl.isEmpty()) {
-                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(jobSiteUrl)));
-            }
-        });
-
-        dialog.show(); // Dialog 표시
-    }
-
 
     private void fetchJobs() {
         databaseReference = FirebaseDatabase.getInstance().getReference("JOB");
@@ -171,15 +116,12 @@ public class JobActivity extends AppCompatActivity {
                         jobList.add(job);
                     }
                 }
-                Log.d("JobActivity", "Total jobs fetched: " + jobList.size());
                 filterJobs();
-                currentPage = 0;
-                displayPage(currentPage);
             }
 
             @Override
             public void onCancelled(DatabaseError databaseError) {
-                Log.e("JobActivity", "Error loading data", databaseError.toException());
+                // Firebase 데이터 로드 실패 시 로그 출력
             }
         });
     }
@@ -196,12 +138,11 @@ public class JobActivity extends AppCompatActivity {
                     filteredJobs.add(job);
                 }
             } catch (ParseException e) {
-                Log.e("JobActivity", "Error parsing date", e);
+                e.printStackTrace();
             }
         }
 
-        currentPage = 0;
-        displayPage(currentPage);
+        adapter.updateJobs(filteredJobs);
     }
 
     private void searchJobs(String query) {
@@ -211,28 +152,45 @@ public class JobActivity extends AppCompatActivity {
                 searchResults.add(job);
             }
         }
-        filteredJobs.clear();
-        filteredJobs.addAll(searchResults);
-        currentPage = 0;
-        displayPage(currentPage);
+        adapter.updateJobs(searchResults);
     }
 
-    private void displayPage(int page) {
-        displayedJobs.clear();
-        int start = page * itemsPerPage;
-        int end = Math.min(start + itemsPerPage, filteredJobs.size());
+    private void showJobInfoDialog(Job job) {
+        Dialog dialog = new Dialog(this);
+        dialog.setContentView(R.layout.company_info);
 
-        for (int i = start; i < end; i++) {
-            displayedJobs.add(filteredJobs.get(i));
-        }
+        TextView titleTextView = dialog.findViewById(R.id.titleTextView);
+        TextView descriptionTextView = dialog.findViewById(R.id.descriptionTextView);
+        TextView linkButton = dialog.findViewById(R.id.linkButton);
+        ImageView favoriteButton = dialog.findViewById(R.id.favoriteButton);
 
-        Log.d("JobActivity", "Displayed jobs on page " + (currentPage + 1) + ": " + displayedJobs.size());
-        adapter.updateJobs(displayedJobs);
+        titleTextView.setText("# " + job.getCompanyName());
+        descriptionTextView.setText("회사명: " + job.getCompanyName() + "\n채용 직무: " + job.getJobPosition() + "\n제출 시작: " + job.getStartDate() + "\n제출 마감: " + job.getEndDate());
 
-        int totalPages = (int) Math.ceil((double) filteredJobs.size() / itemsPerPage);
-        pageNumberText.setText(String.format(Locale.getDefault(), "%d / %d", currentPage + 1, totalPages));
+        boolean[] isFavorite = {false};
+        favoriteButton.setImageResource(R.drawable.star_empty);
 
-        prevPageButton.setEnabled(currentPage > 0);
-        nextPageButton.setEnabled(currentPage < totalPages - 1);
+        favoriteButton.setOnClickListener(v -> {
+            if (isFavorite[0]) {
+                favoriteButton.setImageResource(R.drawable.star_empty);
+            } else {
+                favoriteButton.setImageResource(R.drawable.star_full);
+            }
+            isFavorite[0] = !isFavorite[0];
+        });
+
+        linkButton.setOnClickListener(v -> {
+            String jobSiteUrl = job.getJobSite();
+            if (jobSiteUrl != null && !jobSiteUrl.isEmpty()) {
+                Log.d("JobActivity", "Opening URL: " + jobSiteUrl); // URL 로그 출력
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(jobSiteUrl));
+                startActivity(intent);
+            } else {
+                Log.e("JobActivity", "Job site URL is null or empty");
+            }
+        });
+
+
+        dialog.show();
     }
 }
