@@ -92,14 +92,9 @@ public class MyExistTextActivity extends AppCompatActivity {
         documentId = intent.getStringExtra("documentId");
 
         categoryTextView.setText("카테고리: " + category);
-
         loadPostFromDataBase(documentId);
 
-        savePostButton.setOnClickListener(v -> {
-            updatePost();
-            enableEditing(false);
-            updateTitleEditTextConstraint(updatePostButton.getId());
-        });
+        savePostButton.setOnClickListener(v -> updatePost());
         updatePostButton.setOnClickListener(v -> {
             enableEditing(true);
 
@@ -356,8 +351,6 @@ public class MyExistTextActivity extends AppCompatActivity {
             uploadNewFileAndUpdatePost(updatedTitle, updatedContent);
         }
 
-        enableEditing(false);
-        updateTitleEditTextConstraint(updatePostButton.getId());
     }
 
     private void deleteFilesFromStorage(Runnable onComplete) {
@@ -394,6 +387,7 @@ public class MyExistTextActivity extends AppCompatActivity {
                 .update("title", title, "content", content, "files", files)
                 .addOnSuccessListener(aVoid -> {
                     Toast.makeText(this, "글이 수정되었습니다.", Toast.LENGTH_SHORT).show();
+                    finish();
                 })
                 .addOnFailureListener(e -> {
                     Toast.makeText(this, "글 수정에 실패했습니다.", Toast.LENGTH_SHORT).show();
