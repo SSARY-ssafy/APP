@@ -70,29 +70,40 @@ public class MyExistTextActivity extends AppCompatActivity {
         db = FirebaseFirestore.getInstance();
         storage = FirebaseStorage.getInstance();
 
-        TextView categoryTextView = findViewById(R.id.categoryTextView);
         titleEditText = findViewById(R.id.titleEditText);
         contentEditText = findViewById(R.id.contentEditText);
         uploadedFileContainer = findViewById(R.id.uploadedFileContainer);
-        
-        updatePostButton = findViewById(R.id.updatePostButton);
-        deletePostButton = findViewById(R.id.deletePostButton);
-
-        uploadFileButton = findViewById(R.id.uploadFileButton);
-        savePostButton = findViewById(R.id.savePostButton);
         boldButton = findViewById(R.id.boldButton);
         italicButton = findViewById(R.id.italicButton);
         underlineButton = findViewById(R.id.underlineButton);
         strikethroughButton = findViewById(R.id.strikethroughButton);
+        uploadFileButton = findViewById(R.id.uploadFileButton);
 
-        enableEditing(false);
+        updatePostButton = findViewById(R.id.updatePostButton);
+        deletePostButton = findViewById(R.id.deletePostButton);
+        savePostButton = findViewById(R.id.savePostButton);
+
+        categorySpinner = findViewById(R.id.categorySpinner);
+        categoryList = new ArrayList<>();
+        categoryList.add("카테고리 선택");
+        loadCategoriesFromDB();
+
+        categoryAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, categoryList);
+        categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        categorySpinner.setAdapter(categoryAdapter);
 
         Intent intent = getIntent();
-        String category = intent.getStringExtra("category");
-        documentId = intent.getStringExtra("documentId");
+        String selectedCategory = intent.getStringExtra("category");
+        if (selectedCategory != null && !selectedCategory.isEmpty()) {
+            int position = categoryList.indexOf(selectedCategory);
+            if (position >= 0) {
+                categorySpinner.setSelection(position);
+            }
+        }
 
-        categoryTextView.setText("카테고리: " + category);
-        loadPostFromDataBase(documentId);
+        documentId = intent.getStringExtra("documentId");
+        enableEditing(false);
+        loadPostFromDB(documentId);
 
         savePostButton.setOnClickListener(v -> updatePost());
         updatePostButton.setOnClickListener(v -> {
@@ -238,6 +249,28 @@ public class MyExistTextActivity extends AppCompatActivity {
     }
 
     private void loadPostFromDataBase(String documentId) {
+    private void loadCategoriesFromDB() {
+        db.collection("categories")
+                .get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    for (com.google.firebase.firestore.QueryDocumentSnapshot document : queryDocumentSnapshots) {
+                        String category = document.getString("name");
+                        if (category != null && !categoryList.contains(category)) {
+                            categoryList.add(category);
+                        }
+                    }
+                    categoryAdapter.notifyDataSetChanged();
+
+                    String selectedCategory = getIntent().getStringExtra("category");
+                    if (selectedCategory != null && !selectedCategory.isEmpty()) {
+                        int position = categoryList.indexOf(selectedCategory);
+                        if (position >= 0) {
+                            categorySpinner.setSelection(position);
+                        }
+                    }
+                })
+                .addOnFailureListener(e -> Toast.makeText(this, "카테고리를 불러오는 데 실패했습니다.", Toast.LENGTH_SHORT).show());
+    }
         db.collection("posts").document(documentId)
                 .get()
                 .addOnSuccessListener(documentSnapshot -> {
