@@ -79,7 +79,7 @@ public class MyNewTextActivity extends AppCompatActivity {
         categorySpinner = findViewById(R.id.categorySpinner); // XML에 정의된 스피너
         categoryList = new ArrayList<>();
         categoryList.add("카테고리 선택"); // 기본 카테고리
-        loadCategoriesFromFirestore();
+        loadCategoriesFromDataBase();
 
         categoryAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, categoryList);
         categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -123,7 +123,7 @@ public class MyNewTextActivity extends AppCompatActivity {
         });
     }
 
-    private void loadCategoriesFromFirestore() {
+    private void loadCategoriesFromDataBase() {
         db.collection("categories")
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
@@ -145,8 +145,6 @@ public class MyNewTextActivity extends AppCompatActivity {
                 })
                 .addOnFailureListener(e -> Toast.makeText(this, "카테고리를 불러오는 데 실패했습니다.", Toast.LENGTH_SHORT).show());
     }
-
-
 
     private void savePostToDataBase(String category, String title, String content, List<Map<String, String>> fileData) {
         Map<String, Object> post = new HashMap<>();
