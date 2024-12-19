@@ -472,6 +472,12 @@ public class MyExistTextActivity extends AppCompatActivity {
         } else {
             deletePostFromDataBase();
         }
+                    if (!existedFileUris.isEmpty()) {
+                        deletedFileUris.addAll(existedFileUris);
+                        deleteFilesFromStorage(this::deletePostFromDB);
+                    } else {
+                        deletePostFromDB();
+                    }
     }
 
     private void deletePostFromDataBase() {
