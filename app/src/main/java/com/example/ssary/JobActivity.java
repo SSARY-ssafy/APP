@@ -19,6 +19,8 @@ import android.widget.TextView;
 import com.google.android.flexbox.FlexDirection;
 import com.google.android.flexbox.FlexboxLayoutManager;
 import com.google.android.flexbox.JustifyContent;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -37,6 +39,7 @@ public class JobActivity extends AppCompatActivity {
     private RecyclerView recyclerView;
     private JobsAdapter adapter;
     private DatabaseReference databaseReference;
+    private DatabaseReference favoritesRef;
     private List<Job> jobList = new ArrayList<>();
     private List<Job> filteredJobs = new ArrayList<>();
     private CheckBox checkBoxOnlyActive;
@@ -44,11 +47,21 @@ public class JobActivity extends AppCompatActivity {
     private ImageView searchIcon, backButton;
     private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
     private boolean showAllJobs = false;
+    private String userUID; // 현재 로그인한 유저의 UID
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_job);
+
+        // Firebase Authentication에서 현재 유저 UID 가져오기
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (currentUser != null) {
+            userUID = currentUser.getUid();
+            favoritesRef = FirebaseDatabase.getInstance().getReference("favorites").child(userUID);
+        } else {
+            Log.e("JobActivity", "User is not logged in!");
+        }
 
         // View 초기화
         recyclerView = findViewById(R.id.recyclerview);
@@ -119,10 +132,9 @@ public class JobActivity extends AppCompatActivity {
                 filterJobs();
             }
 
-
             @Override
             public void onCancelled(DatabaseError databaseError) {
-                // Firebase 데이터 로드 실패 시 로그 출력
+                Log.e("JobActivity", "Error fetching jobs: " + databaseError.getMessage());
             }
         });
     }
@@ -178,21 +190,62 @@ public class JobActivity extends AppCompatActivity {
         descriptionTextView.setText(description);
 
         boolean[] isFavorite = {false};
-        favoriteButton.setImageResource(R.drawable.star_empty);
+
+        // 초기화: Firebase에서 즐겨찾기 상태 확인
+        if (userUID != null) {
+            favoritesRef.child(String.valueOf(job.getJobNumber())).addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(DataSnapshot snapshot) {
+                    if (snapshot.exists()) {
+                        favoriteButton.setImageResource(R.drawable.star_full);
+                        isFavorite[0] = true;
+                    } else {
+                        favoriteButton.setImageResource(R.drawable.star_empty);
+                        isFavorite[0] = false;
+                    }
+                }
+
+                @Override
+                public void onCancelled(DatabaseError error) {
+                    Log.e("JobActivity", "Error checking favorite status: " + error.getMessage());
+                }
+            });
+        }
 
         favoriteButton.setOnClickListener(v -> {
-            if (isFavorite[0]) {
-                favoriteButton.setImageResource(R.drawable.star_empty);
-            } else {
-                favoriteButton.setImageResource(R.drawable.star_full);
+            if (userUID == null) {
+                Log.e("JobActivity", "User not logged in");
+                return;
             }
-            isFavorite[0] = !isFavorite[0];
+
+            if (isFavorite[0]) {
+                // 즐겨찾기 제거
+                favoritesRef.child(String.valueOf(job.getJobNumber())).removeValue((error, ref) -> {
+                    if (error == null) {
+                        favoriteButton.setImageResource(R.drawable.star_empty);
+                        isFavorite[0] = false;
+                        Log.d("JobActivity", "Favorite removed for job: " + job.getJobNumber());
+                    } else {
+                        Log.e("JobActivity", "Error removing favorite: " + error.getMessage());
+                    }
+                });
+            } else {
+                // 즐겨찾기 추가
+                favoritesRef.child(String.valueOf(job.getJobNumber())).setValue(job, (error, ref) -> {
+                    if (error == null) {
+                        favoriteButton.setImageResource(R.drawable.star_full);
+                        isFavorite[0] = true;
+                        Log.d("JobActivity", "Favorite added for job: " + job.getJobNumber());
+                    } else {
+                        Log.e("JobActivity", "Error adding favorite: " + error.getMessage());
+                    }
+                });
+            }
         });
 
         linkButton.setOnClickListener(v -> {
             String jobSiteUrl = job.getJobSite();
             if (jobSiteUrl != null && !jobSiteUrl.isEmpty()) {
-                Log.d("JobActivity", "Opening URL: " + jobSiteUrl); // URL 로그 출력
                 Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(jobSiteUrl));
                 startActivity(intent);
             } else {
