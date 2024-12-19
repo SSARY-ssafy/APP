@@ -124,6 +124,7 @@ public class MyNewTextActivity extends AppCompatActivity {
     }
 
     private void loadCategoriesFromDataBase() {
+    // DB로 부터 카테고리 목록을 가져오는 메서드
         db.collection("categories")
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
@@ -147,6 +148,7 @@ public class MyNewTextActivity extends AppCompatActivity {
     }
 
     private void savePostToDataBase(String category, String title, String content, List<Map<String, String>> fileData) {
+    // 게시글 내용을 데이터베이스에 저장
         Map<String, Object> post = new HashMap<>();
         String htmlContent = convertToHtmlStyledContent(content);
 
@@ -166,6 +168,7 @@ public class MyNewTextActivity extends AppCompatActivity {
                 .addOnFailureListener(e -> Toast.makeText(MyNewTextActivity.this, "글 저장에 실패했습니다.", Toast.LENGTH_SHORT).show());
     }
 
+    // 업로드된 파일을 스토리지에 저장
     private void uploadFileToStorage(String title, String content, String category) {
         List<Map<String, String>> fileData = new ArrayList<>();
         int totalFiles = fileUris.size();
@@ -198,6 +201,7 @@ public class MyNewTextActivity extends AppCompatActivity {
         }
     }
 
+    // URI에서 파일 확장자 추출
     private String getFileExtension(Uri uri) {
         String extension = "";
         String mimeType = getContentResolver().getType(uri);
@@ -213,6 +217,7 @@ public class MyNewTextActivity extends AppCompatActivity {
         return extension;
     }
 
+    // 파일 업로드 시, 파일 선택과 관련된 로직
     private void selectFiles() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
@@ -220,6 +225,7 @@ public class MyNewTextActivity extends AppCompatActivity {
         filePickerLauncher.launch(intent);
     }
 
+    // 파일 선택기를 실행하는 작업(Intent)와 결과를 처리하는 작업(result)을 연결하는 로직
     private final ActivityResultLauncher<Intent> filePickerLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
@@ -229,6 +235,7 @@ public class MyNewTextActivity extends AppCompatActivity {
             }
     );
 
+    // 선택한 파일은 업데이트 파일(새 파일)로 업데이트 파일 리스트에 분리하여 관리
     private void handleFileSelection(Intent data) {
         if (data.getClipData() != null) {
            int count = data.getClipData().getItemCount();
@@ -248,6 +255,7 @@ public class MyNewTextActivity extends AppCompatActivity {
         updateUploadedFilesUI();
     }
 
+    // 새로 업데이트된 파일의 이름을 가져오는 메서드
     private String getFileName(Uri uri) {
         String fileName = null;
         if (uri.getScheme().equals("content")) {
@@ -272,7 +280,7 @@ public class MyNewTextActivity extends AppCompatActivity {
         return fileName;
     }
 
-
+    // 업로드된 파일 목록을 UI에 갱신
     private void updateUploadedFilesUI() {
         uploadedFileContainer.removeAllViews();
 
@@ -308,6 +316,7 @@ public class MyNewTextActivity extends AppCompatActivity {
         uploadedFileContainer.setVisibility(fileUris.isEmpty() ? View.GONE : View.VISIBLE);
     }
 
+    // 파일 이름을 클릭하면 파일을 열 수 있도록 Intent 실행
     private void openFile(Uri uri) {
         Intent intent = new Intent(Intent.ACTION_VIEW);
         intent.setDataAndType(uri, "*/*");
@@ -315,6 +324,7 @@ public class MyNewTextActivity extends AppCompatActivity {
         startActivity(intent);
     }
 
+    // 현재 입력된 텍스트에 선택된 스타일을 적용
     private void applyCurrentStyleToInput() {
         int start = contentEditText.getSelectionStart();
         int end = contentEditText.getSelectionEnd();
@@ -366,6 +376,7 @@ public class MyNewTextActivity extends AppCompatActivity {
         }
     }
 
+    // 서식 버튼 클릭 리스너 설정
     private void setupButtonListeners() {
         boldButton.setOnClickListener(v -> {
             isBold = !isBold;
@@ -392,6 +403,7 @@ public class MyNewTextActivity extends AppCompatActivity {
         });
     }
 
+    // 텍스트 범위에 스타일 적용 및 제거
     private void toggleStyle(EditText editText, Object style, boolean isEnabled) {
         Editable text = editText.getText();
         int start = editText.getSelectionStart();
@@ -407,6 +419,7 @@ public class MyNewTextActivity extends AppCompatActivity {
         }
     }
 
+    // 텍스트 변경 이벤트를 감지하여 스타일을 적용
     private void setupTextWatcher() {
         contentEditText.addTextChangedListener(new TextWatcher() {
             private int start;
@@ -431,6 +444,7 @@ public class MyNewTextActivity extends AppCompatActivity {
         });
     }
 
+    // 텍스트 변경 시 현재 스타일 적용
     private void applyCurrentStyles(Editable s, int start, int end) {
         if (isBold) s.setSpan(new StyleSpan(Typeface.BOLD), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         if (isItalic) s.setSpan(new StyleSpan(Typeface.ITALIC), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -438,6 +452,7 @@ public class MyNewTextActivity extends AppCompatActivity {
         if (isStrikethrough) s.setSpan(new StrikethroughSpan(), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
     }
 
+    // 텍스트를 HTML 스타일로 변환
     private String convertToHtmlStyledContent(String content) {
         StringBuilder htmlContent = new StringBuilder();
         Editable text = contentEditText.getText();

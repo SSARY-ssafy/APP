@@ -1,3 +1,8 @@
+/* 로직
+해당 글 클릭 시 -> loadPostFromDataBase() -> updateUploadedFilesUI() -> addFilesToContainer()
+해당 글 저장 버튼 클릭 -> updatePost() -> deleteFilesFromStorage() -> uploadNewFileAndUpdatePost() -> saveUpdatedPost()
+해당 글 삭제 버튼 클릭 -> deletePost() -> deleteFilesFromStorage() or deletePostFromDB()
+ */
 package com.example.ssary;
 
 import android.app.DownloadManager;
@@ -118,12 +123,14 @@ public class MyExistTextActivity extends AppCompatActivity {
         setupTextWatcher();
     }
 
+    // 수정 모드일 때, 제목의 위치 재설정
     private void updateTitleEditTextConstraint(int topToBottomOfId) {
         ConstraintLayout.LayoutParams params = (ConstraintLayout.LayoutParams) titleEditText.getLayoutParams();
         params.topToBottom = topToBottomOfId;
         titleEditText.setLayoutParams(params);
     }
 
+    // 수정 모드일 때, UI 설정
     private void enableEditing(boolean isEditable) {
         isEditing = isEditable;
         titleEditText.setEnabled(isEditable);
@@ -156,6 +163,7 @@ public class MyExistTextActivity extends AppCompatActivity {
         updateUploadedFilesUI();
     }
 
+    // 파일 다운로드 관련 로직
     private void downloadFile(Uri fileUri, String fileName) {
         if (fileUri != null) {
             DownloadManager downloadManager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
@@ -177,6 +185,7 @@ public class MyExistTextActivity extends AppCompatActivity {
         }
     }
 
+    // 다운로드에 필요한 확장자 설정 (MIME -> Multipurpose Internet Mail Extensions))
     private String getMimeType(String fileExtension) {
         switch (fileExtension) {
             case "png": return "image/png";
@@ -189,6 +198,7 @@ public class MyExistTextActivity extends AppCompatActivity {
         }
     }
 
+    // 파일 업로드 시, 파일 선택과 관련된 로직
     private void selectFiles() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("*/*");
@@ -196,6 +206,7 @@ public class MyExistTextActivity extends AppCompatActivity {
         filePickerLauncher.launch(intent);
     }
 
+    // 파일 선택기를 실행하는 작업(Intent)와 결과를 처리하는 작업(result)을 연결하는 로직
     private final ActivityResultLauncher<Intent> filePickerLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
@@ -205,6 +216,7 @@ public class MyExistTextActivity extends AppCompatActivity {
             }
     );
 
+    // 선택한 파일은 업데이트 파일(새 파일)로 업데이트 파일 리스트에 분리하여 관리
     private void handleFileSelection(Intent data) {
         if (data.getClipData() != null) {
             int count = data.getClipData().getItemCount();
@@ -224,6 +236,7 @@ public class MyExistTextActivity extends AppCompatActivity {
         updateUploadedFilesUI();
     }
 
+    // 새로 업데이트된 파일의 이름을 가져오는 메서드
     private String getFileName(Uri uri) {
         String fileName = null;
         if (Objects.equals(uri.getScheme(), "content")) {
@@ -249,6 +262,7 @@ public class MyExistTextActivity extends AppCompatActivity {
     }
 
     private void loadPostFromDataBase(String documentId) {
+    // DB로 부터 카테고리 목록을 가져오는 메서드
     private void loadCategoriesFromDB() {
         db.collection("categories")
                 .get()
@@ -271,6 +285,7 @@ public class MyExistTextActivity extends AppCompatActivity {
                 })
                 .addOnFailureListener(e -> Toast.makeText(this, "카테고리를 불러오는 데 실패했습니다.", Toast.LENGTH_SHORT).show());
     }
+    // DB로 부터 글 정보(제목, 내용, 확장자)을 가져오는 메서드
         db.collection("posts").document(documentId)
                 .get()
                 .addOnSuccessListener(documentSnapshot -> {
@@ -309,6 +324,7 @@ public class MyExistTextActivity extends AppCompatActivity {
                 });
     }
 
+    // 업로드된 파일 목록을 UI에 갱신
     private void updateUploadedFilesUI() {
         uploadedFileContainer.removeAllViews();
         addFilesToContainer(fileUris, fileNames, false);
@@ -318,6 +334,7 @@ public class MyExistTextActivity extends AppCompatActivity {
         );
     }
 
+    // 파일 목록 컨테이너(UI)에 파일 추가
     private void addFilesToContainer(List<Uri> uris, List<String> names, boolean isNewFiles) {
         for (int i = 0; i < uris.size(); i++) {
             String fileName = names.get(i);
@@ -363,10 +380,12 @@ public class MyExistTextActivity extends AppCompatActivity {
         }
     }
 
+    // HTML 콘텐츠를 Spannable로 변환
     private CharSequence parseHtmlContent(String htmlContent) {
         return Html.fromHtml(htmlContent, Html.FROM_HTML_MODE_LEGACY);
     }
 
+    // 파일 이름을 클릭하면 파일을 열 수 있도록 Intent 실행
     private void openFile(Uri uri) {
         Intent intent = new Intent(Intent.ACTION_VIEW);
         intent.setDataAndType(uri, "*/*");
@@ -374,6 +393,7 @@ public class MyExistTextActivity extends AppCompatActivity {
         startActivity(intent);
     }
 
+    // 게시글 수정 내용을 저장
     private void updatePost() {
         String updatedTitle = titleEditText.getText().toString().trim();
         String updatedContents = contentEditText.getText().toString().trim();
@@ -393,6 +413,7 @@ public class MyExistTextActivity extends AppCompatActivity {
 
     }
 
+    // 스토리지에서 파일 삭제 후 후속 작업 실행
     private void deleteFilesFromStorage(Runnable onComplete) {
         if (deletedFileUris.isEmpty()) {
             onComplete.run();
@@ -425,6 +446,7 @@ public class MyExistTextActivity extends AppCompatActivity {
     }
 
     private void saveUpdatedPost(String title, String content, List<Map<String, String>> files) {
+    // 수정된 게시글 내용을 데이터베이스에 저장
         db.collection("posts").document(documentId)
                 .update("title", title, "content", content, "files", files)
                 .addOnSuccessListener(aVoid -> {
@@ -437,6 +459,7 @@ public class MyExistTextActivity extends AppCompatActivity {
     }
 
     private void uploadNewFileAndUpdatePost(String title, String content) {
+    // 새 파일을 업로드하고 게시글 업데이트
         final List<Map<String, String>> updatedFiles = new ArrayList<>();
         int totalUpdatedFiles = updatedFileUris.size();
         final int[] completedFiles = {0};
@@ -486,11 +509,13 @@ public class MyExistTextActivity extends AppCompatActivity {
         }
     }
 
+    // 로컬 URI인지 확인 (즉, 휴대폰에 존재하는 파일인지 확인)
     private boolean isLocalUri(Uri uri) {
         String scheme = uri.getScheme();
         return scheme != null && (scheme.equals("content") || scheme.equals("file"));
     }
 
+    // URI에서 파일 확장자 추출
     private String getFileExtension(Uri uri) {
         String extension = "";
         String mimeType = getContentResolver().getType(uri);
@@ -506,6 +531,7 @@ public class MyExistTextActivity extends AppCompatActivity {
         return extension;
     }
 
+    // 게시글 삭제를 확인 후 실행
     private void deletePost() {
         new AlertDialog.Builder(this)
                 .setTitle("삭제 확인")
@@ -523,6 +549,7 @@ public class MyExistTextActivity extends AppCompatActivity {
     }
 
     private void deletePostFromDataBase() {
+    // 데이터베이스에서 게시글 삭제
         db.collection("posts").document(documentId)
                 .delete()
                 .addOnSuccessListener(aVoid -> {
@@ -534,6 +561,7 @@ public class MyExistTextActivity extends AppCompatActivity {
                 });
     }
 
+    // 서식 버튼 리스너 설정
     private void setupButtonListeners() {
         boldButton.setOnClickListener(v -> {
             isBold = !isBold;
@@ -556,6 +584,7 @@ public class MyExistTextActivity extends AppCompatActivity {
         });
     }
 
+    // 텍스트에 스타일 적용
     private void toggleStyle(EditText editText, Object style, boolean isEnabled) {
         Editable text = editText.getText();
         int start = editText.getSelectionStart();
@@ -571,6 +600,7 @@ public class MyExistTextActivity extends AppCompatActivity {
         }
     }
 
+    // 텍스트 변경 감지 및 스타일 적용
     private void setupTextWatcher() {
         contentEditText.addTextChangedListener(new TextWatcher() {
             private int start;
@@ -595,6 +625,7 @@ public class MyExistTextActivity extends AppCompatActivity {
         });
     }
 
+    // 텍스트 범위에 현재 스타일 적용
     private void applyCurrentStyles(Editable s, int start, int end) {
         if (isBold) s.setSpan(new StyleSpan(Typeface.BOLD), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         if (isItalic) s.setSpan(new StyleSpan(Typeface.ITALIC), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -602,6 +633,7 @@ public class MyExistTextActivity extends AppCompatActivity {
         if (isStrikethrough) s.setSpan(new StrikethroughSpan(), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
     }
 
+    // 내용을 HTML 스타일로 변환
     private String convertToHtmlStyledContent(String content) {
         StringBuilder htmlContent = new StringBuilder();
         Editable text = contentEditText.getText();
