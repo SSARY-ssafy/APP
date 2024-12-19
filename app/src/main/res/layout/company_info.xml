@@ -18,45 +18,53 @@
         app:layout_constraintVertical_bias="0.457">
 
         <!-- ImageView -->
-        <ImageView
-            android:id="@+id/favoriteButton"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_gravity="end|top"
-            android:layout_margin="8dp"
-            android:src="@drawable/star_empty" />
 
         <!-- Title TextView -->
+
+        <!-- Description TextView -->
+
+        <!-- Link Button -->
+
         <TextView
             android:id="@+id/titleTextView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="start|top"
-            android:layout_marginStart="8dp"
+            android:layout_marginStart="18dp"
+            android:layout_marginTop="10dp"
             android:text="#삼성데이터시스템"
             android:textColor="@color/blue"
             android:textSize="16sp"
             android:textStyle="bold" />
 
-        <!-- Description TextView -->
+        <ImageView
+            android:id="@+id/favoriteButton"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            app:layout_constraintStart_toEndOf="@id/titleTextView"
+            android:layout_marginStart="340dp"
+            android:layout_marginTop="7dp"
+            android:src="@drawable/star_empty" />
+
+
         <TextView
             android:id="@+id/descriptionTextView"
-            android:layout_width="match_parent"
+            android:layout_width="352dp"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:layout_margin="8dp"
+            android:layout_margin="5dp"
             android:lineSpacingExtra="4dp"
             android:text="삼성데이터시스템\n그룹 가상화, 배포, 백업, 클라우드 시스템 운영\n채용 직무 : 그룹 가상화, 배포, 백업, 클라우드 시스템 운영\n제출 시작 : 2024-07-02\n제출 마감 : 2024-08-31"
             android:textColor="@android:color/black"
             android:textSize="14sp" />
 
-        <!-- Link Button -->
         <TextView
             android:id="@+id/linkButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|end"
             android:layout_margin="10dp"
+            android:layout_marginTop="20dp"
             android:padding="15dp"
             android:clickable="true"
             android:focusable="true"
