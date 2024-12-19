@@ -119,6 +119,7 @@ public class JobActivity extends AppCompatActivity {
                 filterJobs();
             }
 
+
             @Override
             public void onCancelled(DatabaseError databaseError) {
                 // Firebase 데이터 로드 실패 시 로그 출력
@@ -165,7 +166,16 @@ public class JobActivity extends AppCompatActivity {
         ImageView favoriteButton = dialog.findViewById(R.id.favoriteButton);
 
         titleTextView.setText("# " + job.getCompanyName());
-        descriptionTextView.setText("회사명: " + job.getCompanyName() + "\n채용 직무: " + job.getJobPosition() + "\n제출 시작: " + job.getStartDate() + "\n제출 마감: " + job.getEndDate());
+
+        String description = String.format(
+                Locale.getDefault(),
+                "회사명: %s\n채용 직무: %s\n제출 시작: %s\n제출 마감: %s",
+                job.getCompanyName(),
+                job.getJobPosition(),
+                job.getStartDate(),
+                job.getEndDate()
+        );
+        descriptionTextView.setText(description);
 
         boolean[] isFavorite = {false};
         favoriteButton.setImageResource(R.drawable.star_empty);
@@ -189,7 +199,6 @@ public class JobActivity extends AppCompatActivity {
                 Log.e("JobActivity", "Job site URL is null or empty");
             }
         });
-
 
         dialog.show();
     }
