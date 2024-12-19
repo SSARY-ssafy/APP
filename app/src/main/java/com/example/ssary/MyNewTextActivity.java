@@ -1,5 +1,6 @@
 package com.example.ssary;
 
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Typeface;
@@ -62,7 +63,6 @@ public class MyNewTextActivity extends AppCompatActivity {
         db = FirebaseFirestore.getInstance();
         storage = FirebaseStorage.getInstance();
 
-        TextView categoryTextView = findViewById(R.id.categoryTextView);
         titleEditText = findViewById(R.id.titleEditText);
         contentEditText = findViewById(R.id.contentEditText);
         uploadedFileContainer = findViewById(R.id.uploadedFileContainer);
@@ -74,12 +74,10 @@ public class MyNewTextActivity extends AppCompatActivity {
         imageButton = findViewById(R.id.imageButton);
         Button submitPostButton = findViewById(R.id.submitPostButton);
 
-        uploadFileButton.setOnClickListener(v -> selectFiles());
-
-        categorySpinner = findViewById(R.id.categorySpinner); // XML에 정의된 스피너
+        categorySpinner = findViewById(R.id.categorySpinner);
         categoryList = new ArrayList<>();
-        categoryList.add("카테고리 선택"); // 기본 카테고리
-        loadCategoriesFromDataBase();
+        categoryList.add("카테고리 선택");
+        loadCategoriesFromDB();
 
         categoryAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, categoryList);
         categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -90,10 +88,12 @@ public class MyNewTextActivity extends AppCompatActivity {
             categorySpinner.setSelection(categoryList.indexOf(selectedCategory));
         }
 
+        uploadFileButton.setOnClickListener(v -> selectFiles());
+
         submitPostButton.setOnClickListener(v -> {
             String postTitle = titleEditText.getText().toString().trim();
             String postContent = contentEditText.getText().toString().trim();
-            String category = categorySpinner.getSelectedItem().toString(); // 선택된 카테고리 가져오기
+            String category = categorySpinner.getSelectedItem().toString();
 
             if (postTitle.isEmpty() || postContent.isEmpty()) {
                 Toast.makeText(MyNewTextActivity.this, "제목과 내용을 입력해 주세요.", Toast.LENGTH_SHORT).show();
@@ -101,7 +101,7 @@ public class MyNewTextActivity extends AppCompatActivity {
                 if (!fileUris.isEmpty()) {
                     uploadFileToStorage(postTitle, postContent, category);
                 } else {
-                    savePostToDataBase(category, postTitle, postContent, null);
+                    savePostToDB(category, postTitle, postContent, null);
                 }
             }
         });
@@ -123,8 +123,8 @@ public class MyNewTextActivity extends AppCompatActivity {
         });
     }
 
-    private void loadCategoriesFromDataBase() {
     // DB로 부터 카테고리 목록을 가져오는 메서드
+    private void loadCategoriesFromDB() {
         db.collection("categories")
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
@@ -147,8 +147,8 @@ public class MyNewTextActivity extends AppCompatActivity {
                 .addOnFailureListener(e -> Toast.makeText(this, "카테고리를 불러오는 데 실패했습니다.", Toast.LENGTH_SHORT).show());
     }
 
-    private void savePostToDataBase(String category, String title, String content, List<Map<String, String>> fileData) {
     // 게시글 내용을 데이터베이스에 저장
+    private void savePostToDB(String category, String title, String content, List<Map<String, String>> fileData) {
         Map<String, Object> post = new HashMap<>();
         String htmlContent = convertToHtmlStyledContent(content);
 
@@ -192,7 +192,7 @@ public class MyNewTextActivity extends AppCompatActivity {
 
                         completedFiles[0]++;
                         if(completedFiles[0] == totalFiles) {
-                            savePostToDataBase(category, title, content, fileData);
+                            savePostToDB(category, title, content, fileData);
                         }
                     }))
                     .addOnFailureListener(e -> {

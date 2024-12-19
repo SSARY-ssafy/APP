@@ -3,8 +3,10 @@
 해당 글 저장 버튼 클릭 -> updatePost() -> deleteFilesFromStorage() -> uploadNewFileAndUpdatePost() -> saveUpdatedPost()
 해당 글 삭제 버튼 클릭 -> deletePost() -> deleteFilesFromStorage() or deletePostFromDB()
  */
+
 package com.example.ssary;
 
+import android.app.AlertDialog;
 import android.app.DownloadManager;
 import android.content.Intent;
 import android.database.Cursor;
@@ -21,10 +23,12 @@ import android.text.style.StyleSpan;
 import android.text.style.UnderlineSpan;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -35,7 +39,6 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 
 import android.content.Context;
 import android.os.Environment;
-
 
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.storage.FirebaseStorage;
@@ -56,13 +59,16 @@ public class MyExistTextActivity extends AppCompatActivity {
     private Button savePostButton, updatePostButton, deletePostButton;
     private FirebaseFirestore db;
     private FirebaseStorage storage;
-    private final List<Uri> fileUris = new ArrayList<>();
-    private final List<String> fileExtensions = new ArrayList<>();
-    private final List<String> fileNames = new ArrayList<>();
+    private final List<Uri> existedFileUris = new ArrayList<>();
+    private final List<String> existedFileExtensions = new ArrayList<>();
+    private final List<String> existedFileNames = new ArrayList<>();
     private final List<Uri> deletedFileUris = new ArrayList<>();
     private final List<Uri> updatedFileUris = new ArrayList<>();
     private final List<String> updatedFileNames = new ArrayList<>();
     private boolean isEditing = false;
+    private Spinner categorySpinner;
+    private ArrayList<String> categoryList;
+    private ArrayAdapter<String> categoryAdapter;
 
     private String documentId;
     private boolean isBold = false, isItalic = false, isUnderline = false, isStrikethrough = false;
@@ -113,7 +119,6 @@ public class MyExistTextActivity extends AppCompatActivity {
         savePostButton.setOnClickListener(v -> updatePost());
         updatePostButton.setOnClickListener(v -> {
             enableEditing(true);
-
             updateTitleEditTextConstraint(savePostButton.getId());
         });
         deletePostButton.setOnClickListener(v -> deletePost());
@@ -133,8 +138,10 @@ public class MyExistTextActivity extends AppCompatActivity {
     // 수정 모드일 때, UI 설정
     private void enableEditing(boolean isEditable) {
         isEditing = isEditable;
+
         titleEditText.setEnabled(isEditable);
         contentEditText.setEnabled(isEditable);
+        categorySpinner.setEnabled(isEditable);
 
         LinearLayout formattingButtonContainer = findViewById(R.id.formattingButtonsContainer);
         View topHrView = findViewById(R.id.topHrView);
@@ -261,7 +268,6 @@ public class MyExistTextActivity extends AppCompatActivity {
         return fileName;
     }
 
-    private void loadPostFromDataBase(String documentId) {
     // DB로 부터 카테고리 목록을 가져오는 메서드
     private void loadCategoriesFromDB() {
         db.collection("categories")
@@ -285,7 +291,9 @@ public class MyExistTextActivity extends AppCompatActivity {
                 })
                 .addOnFailureListener(e -> Toast.makeText(this, "카테고리를 불러오는 데 실패했습니다.", Toast.LENGTH_SHORT).show());
     }
+
     // DB로 부터 글 정보(제목, 내용, 확장자)을 가져오는 메서드
+    private void loadPostFromDB(String documentId) {
         db.collection("posts").document(documentId)
                 .get()
                 .addOnSuccessListener(documentSnapshot -> {
@@ -303,14 +311,14 @@ public class MyExistTextActivity extends AppCompatActivity {
 
                         List<Map<String, String>> files = (List<Map<String, String>>) documentSnapshot.get("files");
                         if (files != null) {
-                            fileUris.clear();
-                            fileExtensions.clear();
-                            fileNames.clear();
+                            existedFileUris.clear();
+                            existedFileExtensions.clear();
+                            existedFileNames.clear();
 
                             for (Map<String, String> file : files) {
-                                fileUris.add(Uri.parse(file.get("fileUrl")));
-                                fileExtensions.add(file.get("fileExtension"));
-                                fileNames.add(file.get("fileName"));
+                                existedFileUris.add(Uri.parse(file.get("fileUrl")));
+                                existedFileExtensions.add(file.get("fileExtension"));
+                                existedFileNames.add(file.get("fileName"));
                             }
 
                             updateUploadedFilesUI();
@@ -327,10 +335,10 @@ public class MyExistTextActivity extends AppCompatActivity {
     // 업로드된 파일 목록을 UI에 갱신
     private void updateUploadedFilesUI() {
         uploadedFileContainer.removeAllViews();
-        addFilesToContainer(fileUris, fileNames, false);
+        addFilesToContainer(existedFileUris, existedFileNames, false);
         addFilesToContainer(updatedFileUris, updatedFileNames, true);
         uploadedFileContainer.setVisibility(
-                fileUris.isEmpty() && updatedFileUris.isEmpty() ? View.GONE : View.VISIBLE
+                existedFileUris.isEmpty() && updatedFileUris.isEmpty() ? View.GONE : View.VISIBLE
         );
     }
 
@@ -397,6 +405,7 @@ public class MyExistTextActivity extends AppCompatActivity {
     private void updatePost() {
         String updatedTitle = titleEditText.getText().toString().trim();
         String updatedContents = contentEditText.getText().toString().trim();
+        String updatedCategory = categorySpinner.getSelectedItem().toString();
 
         String updatedContent = convertToHtmlStyledContent(updatedContents);
 
@@ -406,9 +415,9 @@ public class MyExistTextActivity extends AppCompatActivity {
         }
 
         if (!deletedFileUris.isEmpty()) {
-            deleteFilesFromStorage(() -> uploadNewFileAndUpdatePost(updatedTitle, updatedContent));
+            deleteFilesFromStorage(() -> uploadNewFileAndUpdatePost(updatedCategory, updatedTitle, updatedContent));
         } else {
-            uploadNewFileAndUpdatePost(updatedTitle, updatedContent);
+            uploadNewFileAndUpdatePost(updatedCategory, updatedTitle, updatedContent);
         }
 
     }
@@ -445,10 +454,10 @@ public class MyExistTextActivity extends AppCompatActivity {
         }
     }
 
-    private void saveUpdatedPost(String title, String content, List<Map<String, String>> files) {
     // 수정된 게시글 내용을 데이터베이스에 저장
+    private void saveUpdatedPostToDB(String category, String title, String content, List<Map<String, String>> files) {
         db.collection("posts").document(documentId)
-                .update("title", title, "content", content, "files", files)
+                .update("category", category, "title", title, "content", content, "files", files)
                 .addOnSuccessListener(aVoid -> {
                     Toast.makeText(this, "글이 수정되었습니다.", Toast.LENGTH_SHORT).show();
                     finish();
@@ -458,18 +467,18 @@ public class MyExistTextActivity extends AppCompatActivity {
                 });
     }
 
-    private void uploadNewFileAndUpdatePost(String title, String content) {
     // 새 파일을 업로드하고 게시글 업데이트
+    private void uploadNewFileAndUpdatePost(String category, String title, String content) {
         final List<Map<String, String>> updatedFiles = new ArrayList<>();
         int totalUpdatedFiles = updatedFileUris.size();
         final int[] completedFiles = {0};
 
-        if(!fileUris.isEmpty()) {
-            for (int i = 0; i < fileUris.size(); i++) {
+        if(!existedFileUris.isEmpty()) {
+            for (int i = 0; i < existedFileUris.size(); i++) {
                 Map<String, String> fileInfo = new HashMap<>();
-                fileInfo.put("fileName", fileNames.get(i));
-                fileInfo.put("fileExtension", fileExtensions.get(i));
-                fileInfo.put("fileUrl", fileUris.get(i).toString());
+                fileInfo.put("fileName", existedFileNames.get(i));
+                fileInfo.put("fileExtension", existedFileExtensions.get(i));
+                fileInfo.put("fileUrl", existedFileUris.get(i).toString());
                 updatedFiles.add(fileInfo);
             }
         }
@@ -496,7 +505,7 @@ public class MyExistTextActivity extends AppCompatActivity {
 
                         completedFiles[0]++;
                         if (completedFiles[0] == totalUpdatedFiles) {
-                            saveUpdatedPost(title, content, updatedFiles);
+                            saveUpdatedPostToDB(category, title, content, updatedFiles);
                         }
                     }))
                     .addOnFailureListener(e -> {
@@ -505,7 +514,7 @@ public class MyExistTextActivity extends AppCompatActivity {
         }
 
         if (totalUpdatedFiles == 0) {
-            saveUpdatedPost(title, content, updatedFiles);
+            saveUpdatedPostToDB(category, title, content, updatedFiles);
         }
     }
 
@@ -548,8 +557,8 @@ public class MyExistTextActivity extends AppCompatActivity {
                 .show();
     }
 
-    private void deletePostFromDataBase() {
     // 데이터베이스에서 게시글 삭제
+    private void deletePostFromDB() {
         db.collection("posts").document(documentId)
                 .delete()
                 .addOnSuccessListener(aVoid -> {
