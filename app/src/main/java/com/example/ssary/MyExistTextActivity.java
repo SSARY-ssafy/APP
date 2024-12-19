@@ -359,27 +359,29 @@ public class MyExistTextActivity extends AppCompatActivity {
             return;
         }
 
-        deleteFileAtIndex(0, onComplete);
-    }
-
-    private void deleteFileAtIndex(int index, Runnable onComplete) {
-        if (index >= deletedFileUris.size()) {
-            deletedFileUris.clear();
-            onComplete.run();
-            return;
+        final List<StorageReference> fileReferences = new ArrayList<>();
+        for (Uri fileUri : deletedFileUris) {
+            fileReferences.add(storage.getReferenceFromUrl(fileUri.toString()));
         }
 
-        Uri fileUri = deletedFileUris.get(index);
-        StorageReference fileRef = storage.getReferenceFromUrl(fileUri.toString());
+        final int totalFiles = fileReferences.size();
+        final int[] completedFiles = {0};
+        final boolean[] hasErrorOccurred = {false};
 
-        fileRef.delete()
-                .addOnSuccessListener(aVoid -> {
-                    deleteFileAtIndex(index + 1, onComplete);
-                })
-                .addOnFailureListener(e -> {
-                    Toast.makeText(this, "파일 삭제 실패: " + fileUri.toString(), Toast.LENGTH_SHORT).show();
-                    deleteFileAtIndex(index + 1, onComplete);
-                });
+        for (StorageReference fileRef : fileReferences) {
+            fileRef.delete()
+                    .addOnSuccessListener(aVoid -> {
+                        completedFiles[0]++;
+                        if (completedFiles[0] == totalFiles && !hasErrorOccurred[0]) {
+                            deletedFileUris.clear();
+                            onComplete.run();
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        hasErrorOccurred[0] = true; // 에러 발생
+                        Toast.makeText(this, "파일 삭제에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                    });
+        }
     }
 
     private void saveUpdatedPost(String title, String content, List<Map<String, String>> files) {
@@ -430,7 +432,7 @@ public class MyExistTextActivity extends AppCompatActivity {
                         updatedFiles.add(fileInfo);
 
                         completedFiles[0]++;
-                        if(completedFiles[0] == totalUpdatedFiles) {
+                        if (completedFiles[0] == totalUpdatedFiles) {
                             saveUpdatedPost(title, content, updatedFiles);
                         }
                     }))
