@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- 뒤로가기 버튼 (왼쪽 끝) -->
+    <ImageButton
+        android:id="@+id/btnBack"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="8dp"
+        android:src="@drawable/ic_back"
+        android:scaleType="fitCenter"
+        android:background="@null"
+        android:contentDescription="Back Button"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- + 버튼 (오른쪽 끝) -->
+    <ImageButton
+        android:id="@+id/btnAddSchedule"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginTop="8dp"
+        android:src="@drawable/ic_plus_button"
+        android:scaleType="fitCenter"
+        android:background="@null"
+        android:contentDescription="Add Schedule"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- 중앙 월 이동 및 표시 영역 -->
+    <LinearLayout
+        android:id="@+id/monthNavigation"
+        android:layout_width="wrap_content"
+        android:layout_height="48dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- 이전 달 버튼 -->
+        <ImageButton
+            android:id="@+id/btnPrevMonth"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_arrow_left"
+            android:scaleType="fitCenter"
+            android:background="@null"
+            android:contentDescription="Previous Month" />
+
+        <!-- 현재 월 표시 -->
+        <TextView
+            android:id="@+id/tvCurrentMonth"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="2024.12"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_marginStart="20dp"
+            android:layout_marginEnd="20dp" />
+
+        <!-- 다음 달 버튼 -->
+        <ImageButton
+            android:id="@+id/btnNextMonth"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_arrow_right"
+            android:scaleType="fitCenter"
+            android:background="@null"
+            android:contentDescription="Next Month" />
+    </LinearLayout>
+
+    <!-- 요일 표시 영역 -->
+    <LinearLayout
+        android:id="@+id/dayHeader"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="#F0F0F0"
+        android:weightSum="7"
+        android:divider="@drawable/line_divider"
+        android:showDividers="beginning|end|middle"
+        app:layout_constraintTop_toBottomOf="@id/monthNavigation"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView style="@style/DayHeaderStyle" android:text="일" android:textColor="#FF0000" android:layout_weight="1" />
+        <TextView style="@style/DayHeaderStyle" android:text="월" android:layout_weight="1" />
+        <TextView style="@style/DayHeaderStyle" android:text="화" android:layout_weight="1" />
+        <TextView style="@style/DayHeaderStyle" android:text="수" android:layout_weight="1" />
+        <TextView style="@style/DayHeaderStyle" android:text="목" android:layout_weight="1" />
+        <TextView style="@style/DayHeaderStyle" android:text="금" android:layout_weight="1" />
+        <TextView style="@style/DayHeaderStyle" android:text="토" android:textColor="#0000FF" android:layout_weight="1" />
+    </LinearLayout>
+
+    <!-- 달력 날짜 영역 -->
+    <GridLayout
+        android:id="@+id/calendarGrid"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:columnCount="7"
+        app:layout_constraintTop_toBottomOf="@id/dayHeader"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

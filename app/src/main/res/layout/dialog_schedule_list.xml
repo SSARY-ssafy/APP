@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@drawable/dialog_background">
+
+    <TextView
+        android:id="@+id/tvSelectedDate"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="날짜"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <LinearLayout
+        android:id="@+id/scheduleListContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="8dp" />
+
+    <ImageButton
+        android:id="@+id/btnAddSchedule"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:src="@drawable/ic_plus_button"
+        android:layout_gravity="end"
+        android:background="@null"
+        android:contentDescription="Add Schedule" />
+</LinearLayout>
