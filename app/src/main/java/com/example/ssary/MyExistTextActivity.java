@@ -304,16 +304,23 @@ public class MyExistTextActivity extends AppCompatActivity {
             if (isEditing) {
                 deleteFileButton.setVisibility(View.VISIBLE);
                 deleteFileButton.setOnClickListener(v -> {
-                    if (isNewFiles) {
-                        updatedFileUris.remove(finalI);
-                        updatedFileNames.remove(finalI);
-                    } else {
-                        deletedFileUris.add(fileUris.remove(finalI));
-                        fileExtensions.remove(finalI);
-                        fileNames.remove(finalI);
-                    }
-                    updateUploadedFilesUI();
-                    Toast.makeText(this, "파일이 삭제되었습니다: " + fileName, Toast.LENGTH_SHORT).show();
+                    new AlertDialog.Builder(this)
+                            .setTitle("파일 삭제 확인")
+                            .setMessage("정말 이 파일을 삭제하시겠습니까?")
+                            .setPositiveButton("삭제", (dialog, which) -> {
+                                if (isNewFiles) {
+                                    updatedFileUris.remove(finalI);
+                                    updatedFileNames.remove(finalI);
+                                } else {
+                                    deletedFileUris.add(existedFileUris.remove(finalI));
+                                    existedFileExtensions.remove(finalI);
+                                    existedFileNames.remove(finalI);
+                                }
+                                updateUploadedFilesUI();
+                                Toast.makeText(this, "파일이 삭제되었습니다: " + fileName, Toast.LENGTH_SHORT).show();
+                            })
+                            .setNegativeButton("취소", (dialog, which) -> {})
+                            .show();
                 });
             } else {
                 deleteFileButton.setVisibility(View.GONE);
@@ -467,17 +474,19 @@ public class MyExistTextActivity extends AppCompatActivity {
     }
 
     private void deletePost() {
-        if (!fileUris.isEmpty()) {
-            deleteFilesFromStorage(this::deletePostFromDataBase);
-        } else {
-            deletePostFromDataBase();
-        }
+        new AlertDialog.Builder(this)
+                .setTitle("삭제 확인")
+                .setMessage("정말 삭제하시겠습니까?")
+                .setPositiveButton("삭제", (dialog, which) -> {
                     if (!existedFileUris.isEmpty()) {
                         deletedFileUris.addAll(existedFileUris);
                         deleteFilesFromStorage(this::deletePostFromDB);
                     } else {
                         deletePostFromDB();
                     }
+                })
+                .setNegativeButton("취소", (dialog, which) -> {})
+                .show();
     }
 
     private void deletePostFromDataBase() {

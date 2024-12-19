@@ -289,10 +289,17 @@ public class MyNewTextActivity extends AppCompatActivity {
 
             ImageView deleteFileButton = fileItemView.findViewById(R.id.deleteFileButton);
             deleteFileButton.setOnClickListener(v -> {
-                fileUris.remove(finalI);
-                fileNames.remove(finalI);
-                updateUploadedFilesUI();
-                Toast.makeText(this, "파일이 삭제되었습니다: " + fileName, Toast.LENGTH_SHORT).show();
+                new AlertDialog.Builder(this)
+                        .setTitle("파일 삭제 확인")
+                        .setMessage("정말 이 파일을 삭제하시겠습니까?")
+                        .setPositiveButton("삭제", (dialog, which) -> {
+                            fileUris.remove(finalI);
+                            fileNames.remove(finalI);
+                            updateUploadedFilesUI();
+                            Toast.makeText(this, "파일이 삭제되었습니다: " + fileName, Toast.LENGTH_SHORT).show();
+                        })
+                        .setNegativeButton("취소", (dialog, which) -> {})
+                        .show();
             });
 
             uploadedFileContainer.addView(fileItemView);
