@@ -1,15 +1,19 @@
 package com.example.ssary;
 
 import android.app.Dialog;
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.text.LineBreaker;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.Layout;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.GridLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ImageButton;
 import android.widget.TextView;
@@ -24,6 +28,12 @@ import android.text.TextUtils;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
 
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
@@ -213,10 +223,18 @@ public class CalendarActivity extends AppCompatActivity {
 
         TextView tvSelectedDate = dialog.findViewById(R.id.tvSelectedDate);
         LinearLayout scheduleListContainer = dialog.findViewById(R.id.scheduleListContainer);
+        LinearLayout jobListContainer = dialog.findViewById(R.id.jobListContainer);
+        View divider = dialog.findViewById(R.id.divider);
+        TextView tvJobHeader = dialog.findViewById(R.id.tv_job_header);
         ImageButton btnAddSchedule = dialog.findViewById(R.id.btnAddSchedule);
 
+        divider.setVisibility(View.GONE);
+        tvJobHeader.setVisibility(View.GONE);
+
+        // 선택된 날짜
         tvSelectedDate.setText(String.format("%d년 %02d월 %02d일", currentYear, currentMonth + 1, day));
 
+        // Firestore에서 일정 데이터 가져오기
         db.collection("schedule")
                 .whereEqualTo("year", currentYear)
                 .whereEqualTo("month", currentMonth + 1)
@@ -233,10 +251,91 @@ public class CalendarActivity extends AppCompatActivity {
                     }
                 });
 
-        btnAddSchedule.setOnClickListener(v -> showAddScheduleDialog());
+        // 선호된 날짜를 "YYYY-MM-DD" 형식으로 변환
+        String selectedDate = String.format("%d-%02d-%02d", currentYear, currentMonth + 1, day);
+
+        // Firebase Realtime Database에서 즐겨찾기한 채용공고 가져오기
+        String userUID = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        DatabaseReference favoritesRef = FirebaseDatabase.getInstance()
+                .getReference("favorites")
+                .child(userUID);
+
+        favoritesRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                jobListContainer.removeAllViews(); // 기존 데이터 초기화
+                boolean hasJobs = false;
+
+                for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                    Job job = snapshot.getValue(Job.class);
+
+                    if (job != null && job.getEndDate() != null && selectedDate.equals(job.getEndDate())) {
+                        // 채용공고가 있으면 관련 View를 표시
+                        if (!hasJobs) {
+                            divider.setVisibility(View.VISIBLE);
+                            tvJobHeader.setVisibility(View.VISIBLE);
+                            hasJobs = true;
+                        }
+
+                        // item_job 레이아웃 추가
+                        View jobItem = getLayoutInflater().inflate(R.layout.item_job, null);
+
+                        // job 데이터 초기화
+                        ImageView starIcon = jobItem.findViewById(R.id.ivStarIcon);
+                        TextView tvJobTitle = jobItem.findViewById(R.id.tvJobTitle);
+                        TextView tvJobLink = jobItem.findViewById(R.id.tvJobLink);
+
+                        tvJobTitle.setText(String.format("%s", job.getCompanyName()));
+                        tvJobLink.setText("공고 페이지 >");
+                        tvJobLink.setOnClickListener(v -> {
+                            String jobSiteUrl = job.getJobSite();
+                            if (jobSiteUrl != null && !jobSiteUrl.isEmpty()) {
+                                Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(jobSiteUrl));
+                                CalendarActivity.this.startActivity(browserIntent);
+                            } else {
+                                Toast.makeText(CalendarActivity.this, "유효한 채용공고 링크가 없습니다.", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+
+                        // 즐겨찾기 삭제 버튼 동작
+                        starIcon.setOnClickListener(v -> {
+                            favoritesRef.child(String.valueOf(job.getJobNumber())).removeValue((error, ref) -> {
+                                if (error == null) {
+                                    jobListContainer.removeView(jobItem); // UI에서 제거
+                                    if (jobListContainer.getChildCount() == 0) {
+                                        divider.setVisibility(View.GONE);
+                                        tvJobHeader.setVisibility(View.GONE);
+                                    }
+                                    Toast.makeText(CalendarActivity.this, "즐겨찾기에서 삭제되었습니다.", Toast.LENGTH_SHORT).show();
+                                } else {
+                                    Toast.makeText(CalendarActivity.this, "즐겨찾기를 삭제하는 데 실패했습니다.", Toast.LENGTH_SHORT).show();
+                                    Log.e("CalendarActivity", "Error removing favorite: " + error.getMessage());
+                                }
+                            });
+                        });
+
+                        jobListContainer.addView(jobItem);
+                    }
+                }
+
+                // 채용공고가 없는 경우 관련 View 숨김
+                if (!hasJobs) {
+                    divider.setVisibility(View.GONE);
+                    tvJobHeader.setVisibility(View.GONE);
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                Toast.makeText(CalendarActivity.this, "데이터를 가져오는 데 실패했습니다.", Toast.LENGTH_SHORT).show();
+                Log.e("Debug", "Database error: " + databaseError.getMessage());
+            }
+        });
 
         dialog.show();
     }
+
+
 
     private void showAddScheduleDialog() {
         Dialog dialog = new Dialog(this);
