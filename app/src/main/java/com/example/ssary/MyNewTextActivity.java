@@ -61,7 +61,7 @@ public class MyNewTextActivity extends AppCompatActivity {
         setContentView(R.layout.activity_my_new_text);
 
         db = FirebaseFirestore.getInstance();
-        storage = FirebaseStorage.getInstance();
+        storage = FirebaseStorage.getInstance("gs://ssary-83359");
 
         titleEditText = findViewById(R.id.titleEditText);
         contentEditText = findViewById(R.id.contentEditText);
