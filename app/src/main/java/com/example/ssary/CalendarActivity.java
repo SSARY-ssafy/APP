@@ -1,7 +1,9 @@
 package com.example.ssary;
 
+import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.Intent;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.text.LineBreaker;
 import android.net.Uri;
@@ -29,6 +31,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
 
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -77,7 +80,9 @@ public class CalendarActivity extends AppCompatActivity {
         // 버튼 리스너 설정
         btnPrevMonth.setOnClickListener(v -> changeMonth(-1));
         btnNextMonth.setOnClickListener(v -> changeMonth(1));
-        btnAddSchedule.setOnClickListener(v -> showAddScheduleDialog());
+        btnAddSchedule.setOnClickListener(v -> {
+            showAddScheduleDialog(null, this::updateCalendar);
+        });
         btnBack.setOnClickListener(v -> finish()); // 뒤로가기
     }
 
@@ -153,67 +158,78 @@ public class CalendarActivity extends AppCompatActivity {
     }
 
     private void addScheduleBars(LinearLayout dayCell, int day) {
-        db.collection("schedule")
-                .whereEqualTo("year", currentYear)
-                .whereEqualTo("month", currentMonth + 1)
-                .whereEqualTo("day", day)
-                .get()
-                .addOnSuccessListener(queryDocumentSnapshots -> {
-                    int maxVisibleSchedules = 4; // 최대 표시 개수
-                    int barCount = 0;
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            return;
+        }
 
-                    for (QueryDocumentSnapshot doc : queryDocumentSnapshots) {
-                        if (barCount >= maxVisibleSchedules) break;
+        String uid = user.getUid();
+        String dateKey = createValidDateKey(currentYear, currentMonth + 1, day); // 유효한 키 생성
 
-                        String content = doc.getString("content");
+        DatabaseReference scheduleRef = FirebaseDatabase.getInstance()
+                .getReference("schedule")
+                .child(uid)
+                .child(dateKey);
 
-                        TextView scheduleBar = new TextView(this);
-                        scheduleBar.setText(content);
-                        scheduleBar.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-                        scheduleBar.setPadding(4, 2, 4, 2);
-                        scheduleBar.setBackgroundColor(Color.parseColor("#448AFF")); // 파란색 배경
-                        scheduleBar.setTextColor(Color.WHITE);
+        scheduleRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                int maxVisibleSchedules = 4; // 최대 표시 개수
+                int barCount = 0;
 
-                        // 텍스트가 바의 "왼쪽"부터 출력되도록 Gravity 설정
-                        scheduleBar.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+                for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                    if (barCount >= maxVisibleSchedules) break;
 
-                        // 텍스트 속성 추가
-                        scheduleBar.setMaxLines(1); // 한 줄만 표시
-                        scheduleBar.setBreakStrategy(LineBreaker.BREAK_STRATEGY_SIMPLE); // 가능한 많은 글자를 표시
-                        scheduleBar.setEllipsize(TextUtils.TruncateAt.END); // 글자가 길면 마지막에 "..." 추가
-                        scheduleBar.setSingleLine(true); // 단일 라인으로 고정
+                    String content = snapshot.child("content").getValue(String.class);
+                    if (content == null) continue;
 
-                        // 바 레이아웃 파라미터 설정
-                        LinearLayout.LayoutParams barParams = new LinearLayout.LayoutParams(
-                                LinearLayout.LayoutParams.MATCH_PARENT,  // 바의 너비
-                                48 // 바의 높이 (필요에 따라 조절 가능)
-                        );
-                        barParams.setMargins(0, 4, 0, 0); // 바 간격
-                        scheduleBar.setLayoutParams(barParams);
+                    TextView scheduleBar = new TextView(CalendarActivity.this);
+                    scheduleBar.setText(content);
+                    scheduleBar.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+                    scheduleBar.setPadding(4, 2, 4, 2);
+                    scheduleBar.setBackgroundColor(Color.parseColor("#448AFF")); // 파란색 배경
+                    scheduleBar.setTextColor(Color.WHITE);
+                    scheduleBar.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+                    scheduleBar.setMaxLines(1);
+                    scheduleBar.setEllipsize(TextUtils.TruncateAt.END);
 
-                        dayCell.addView(scheduleBar);
-                        barCount++;
-                    }
+                    LinearLayout.LayoutParams barParams = new LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            48
+                    );
+                    barParams.setMargins(0, 4, 0, 0);
+                    scheduleBar.setLayoutParams(barParams);
 
-                    // 추가 일정이 있을 경우 "..." 표시
-                    if (queryDocumentSnapshots.size() > maxVisibleSchedules) {
-                        TextView moreText = new TextView(this);
-                        moreText.setText("...");
-                        moreText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-                        moreText.setGravity(Gravity.CENTER);
-                        moreText.setTextColor(Color.DKGRAY);
+                    dayCell.addView(scheduleBar);
+                    barCount++;
+                }
 
-                        LinearLayout.LayoutParams moreParams = new LinearLayout.LayoutParams(
-                                LinearLayout.LayoutParams.WRAP_CONTENT,
-                                LinearLayout.LayoutParams.WRAP_CONTENT
-                        );
-                        moreParams.setMargins(0, 4, 0, 0);
-                        moreText.setLayoutParams(moreParams);
+                // 추가 일정이 있을 경우 "..." 표시
+                if (dataSnapshot.getChildrenCount() > maxVisibleSchedules) {
+                    TextView moreText = new TextView(CalendarActivity.this);
+                    moreText.setText("...");
+                    moreText.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+                    moreText.setGravity(Gravity.CENTER);
+                    moreText.setTextColor(Color.DKGRAY);
 
-                        dayCell.addView(moreText);
-                    }
-                });
+                    LinearLayout.LayoutParams moreParams = new LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT
+                    );
+                    moreParams.setMargins(0, 4, 0, 0);
+                    moreText.setLayoutParams(moreParams);
+
+                    dayCell.addView(moreText);
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                Toast.makeText(CalendarActivity.this, "데이터를 가져오는 데 실패했습니다.", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
+
 
 
     private void showScheduleDialog(int day) {
@@ -234,31 +250,178 @@ public class CalendarActivity extends AppCompatActivity {
         // 선택된 날짜
         tvSelectedDate.setText(String.format("%d년 %02d월 %02d일", currentYear, currentMonth + 1, day));
 
-        // Firestore에서 일정 데이터 가져오기
-        db.collection("schedule")
-                .whereEqualTo("year", currentYear)
-                .whereEqualTo("month", currentMonth + 1)
-                .whereEqualTo("day", day)
-                .get()
-                .addOnSuccessListener(queryDocumentSnapshots -> {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            Toast.makeText(this, "로그인이 필요합니다.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String uid = user.getUid();
+        String dateKey = createValidDateKey(currentYear, currentMonth + 1, day); // 유효한 키 생성
+
+        Runnable updateScheduleList = () -> {
+            DatabaseReference scheduleRef = FirebaseDatabase.getInstance()
+                    .getReference("schedule")
+                    .child(uid)
+                    .child(dateKey);
+
+            scheduleRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                // 클래스 멤버 변수로 선언
+                private View.OnClickListener originalEditListener;
+
+                // onDataChange 메서드 내 수정
+                @Override
+                public void onDataChange(DataSnapshot dataSnapshot) {
                     scheduleListContainer.removeAllViews();
-                    for (QueryDocumentSnapshot doc : queryDocumentSnapshots) {
-                        View scheduleItem = getLayoutInflater().inflate(R.layout.item_schedule, null);
+                    for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                        String content = snapshot.child("content").getValue(String.class);
+                        String scheduleKey = snapshot.getKey(); // 데이터 수정 및 삭제를 위한 키
+                        if (content == null || scheduleKey == null) continue;
+
+                        // item_schedule 레이아웃 추가
+                        View scheduleItem = getLayoutInflater().inflate(R.layout.item_schedule, scheduleListContainer, false);
                         TextView tvContent = scheduleItem.findViewById(R.id.tvScheduleContent);
-                        tvContent.setText(doc.getString("content"));
+                        Button btnDelete = scheduleItem.findViewById(R.id.btnDelete);
+                        Button btnEdit = scheduleItem.findViewById(R.id.btnEdit);
+
+                        tvContent.setText(content);
+
+                        // 삭제 버튼 클릭 리스너
+                        btnDelete.setOnClickListener(v -> {
+                            new AlertDialog.Builder(CalendarActivity.this)
+                                    .setTitle("삭제 확인")
+                                    .setMessage("정말로 삭제하시겠습니까?")
+                                    .setPositiveButton("확인", (dialog, which) -> {
+                                        // Firebase Realtime Database에서 데이터 삭제
+                                        DatabaseReference scheduleRef = FirebaseDatabase.getInstance()
+                                                .getReference("schedule")
+                                                .child(uid)
+                                                .child(dateKey)
+                                                .child(scheduleKey);
+
+                                        scheduleRef.removeValue()
+                                                .addOnSuccessListener(aVoid -> {
+                                                    Toast.makeText(CalendarActivity.this, "일정이 삭제되었습니다.", Toast.LENGTH_SHORT).show();
+                                                    scheduleListContainer.removeView(scheduleItem); // UI에서 제거
+                                                    updateCalendar();
+                                                })
+                                                .addOnFailureListener(e -> {
+                                                    Toast.makeText(CalendarActivity.this, "삭제에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                                                });
+                                    })
+                                    .setNegativeButton("취소", (dialog, which) -> dialog.dismiss())
+                                    .show();
+                        });
+
+                        // 수정 버튼 클릭 리스너
+                        btnEdit.setOnClickListener(v -> {
+                            // 수정 버튼과 삭제 버튼 숨기기
+                            btnEdit.setVisibility(View.GONE);
+                            btnDelete.setVisibility(View.GONE);
+
+                            // 확인 버튼 추가
+                            Button btnConfirm = new Button(CalendarActivity.this);
+                            btnConfirm.setText("확인");
+                            LinearLayout.LayoutParams confirmButtonParams = new LinearLayout.LayoutParams(
+                                    (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 60, getResources().getDisplayMetrics()),
+                                    (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 40, getResources().getDisplayMetrics())
+                            );
+                            confirmButtonParams.setMargins(8, 0, 8, 0);
+                            btnConfirm.setLayoutParams(confirmButtonParams);
+                            btnConfirm.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4CAF50")));
+                            btnConfirm.setTextColor(Color.WHITE);
+                            btnConfirm.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+
+                            // 취소 버튼 추가
+                            Button btnCancel = new Button(CalendarActivity.this);
+                            btnCancel.setText("취소");
+                            LinearLayout.LayoutParams cancelButtonParams = new LinearLayout.LayoutParams(
+                                    (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 60, getResources().getDisplayMetrics()),
+                                    (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 40, getResources().getDisplayMetrics())
+                            );
+                            cancelButtonParams.setMargins(8, 0, 8, 0);
+                            btnCancel.setLayoutParams(cancelButtonParams);
+                            btnCancel.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FF9D1C")));
+                            btnCancel.setTextColor(Color.WHITE);
+                            btnCancel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+
+                            // TextView를 EditText로 전환
+                            EditText etEditContent = new EditText(CalendarActivity.this);
+                            etEditContent.setText(tvContent.getText().toString());
+                            etEditContent.setLayoutParams(tvContent.getLayoutParams());
+                            etEditContent.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+
+                            // 기존 상태 숨기고 새로운 상태 추가
+                            tvContent.setVisibility(View.GONE);
+                            ((ViewGroup) scheduleItem).addView(etEditContent, 0);
+                            ((ViewGroup) scheduleItem).addView(btnConfirm);
+                            ((ViewGroup) scheduleItem).addView(btnCancel);
+
+                            // 확인 버튼 클릭 리스너
+                            btnConfirm.setOnClickListener(confirmView -> {
+                                String updatedContent = etEditContent.getText().toString().trim();
+                                if (!updatedContent.isEmpty()) {
+                                    // Firebase Realtime Database 업데이트
+                                    DatabaseReference scheduleRef = FirebaseDatabase.getInstance()
+                                            .getReference("schedule")
+                                            .child(uid)
+                                            .child(dateKey)
+                                            .child(scheduleKey)
+                                            .child("content");
+
+                                    scheduleRef.setValue(updatedContent)
+                                            .addOnSuccessListener(aVoid -> {
+                                                Toast.makeText(CalendarActivity.this, "일정이 수정되었습니다.", Toast.LENGTH_SHORT).show();
+                                                tvContent.setText(updatedContent);
+
+                                                // 원래 상태로 복원
+                                                ((ViewGroup) scheduleItem).removeView(etEditContent);
+                                                ((ViewGroup) scheduleItem).removeView(btnConfirm);
+                                                ((ViewGroup) scheduleItem).removeView(btnCancel);
+                                                tvContent.setVisibility(View.VISIBLE);
+                                                btnEdit.setVisibility(View.VISIBLE);
+                                                btnDelete.setVisibility(View.VISIBLE);
+                                                updateCalendar();
+                                            })
+                                            .addOnFailureListener(e -> {
+                                                Toast.makeText(CalendarActivity.this, "수정에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                                            });
+                                } else {
+                                    Toast.makeText(CalendarActivity.this, "내용을 입력해주세요.", Toast.LENGTH_SHORT).show();
+                                }
+                            });
+
+                            // 취소 버튼 클릭 리스너
+                            btnCancel.setOnClickListener(cancelView -> {
+                                // 원래 상태로 복원
+                                ((ViewGroup) scheduleItem).removeView(etEditContent);
+                                ((ViewGroup) scheduleItem).removeView(btnConfirm);
+                                ((ViewGroup) scheduleItem).removeView(btnCancel);
+                                tvContent.setVisibility(View.VISIBLE);
+                                btnEdit.setVisibility(View.VISIBLE);
+                                btnDelete.setVisibility(View.VISIBLE);
+                            });
+                        });
 
                         scheduleListContainer.addView(scheduleItem);
                     }
-                });
+                }
+
+
+                @Override
+                public void onCancelled(DatabaseError databaseError) {
+                    Toast.makeText(CalendarActivity.this, "일정을 가져오는 데 실패했습니다.", Toast.LENGTH_SHORT).show();
+                }
+            });
+        };
 
         // 선호된 날짜를 "YYYY-MM-DD" 형식으로 변환
         String selectedDate = String.format("%d-%02d-%02d", currentYear, currentMonth + 1, day);
 
         // Firebase Realtime Database에서 즐겨찾기한 채용공고 가져오기
-        String userUID = FirebaseAuth.getInstance().getCurrentUser().getUid();
         DatabaseReference favoritesRef = FirebaseDatabase.getInstance()
                 .getReference("favorites")
-                .child(userUID);
+                .child(uid);
 
         favoritesRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
@@ -332,12 +495,22 @@ public class CalendarActivity extends AppCompatActivity {
             }
         });
 
+        // 초기 일정 목록 로드
+        updateScheduleList.run();
+
+        // 일정 추가 버튼 리스너
+        btnAddSchedule.setOnClickListener(v -> {
+            Calendar selectedDateInDialog = Calendar.getInstance();
+            selectedDateInDialog.set(currentYear, currentMonth, day);
+            showAddScheduleDialog(selectedDateInDialog, updateScheduleList);
+        });
+
         dialog.show();
     }
 
 
-
-    private void showAddScheduleDialog() {
+    // 일정 추가 dialog
+    private void showAddScheduleDialog(Calendar initialDate, Runnable onScheduleAdded) {
         Dialog dialog = new Dialog(this);
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_add_schedule, null);
         dialog.setContentView(dialogView);
@@ -353,8 +526,8 @@ public class CalendarActivity extends AppCompatActivity {
         ImageButton btnPrevDate = dialogView.findViewById(R.id.btnPrevDate);
         ImageButton btnNextDate = dialogView.findViewById(R.id.btnNextDate);
 
-        // 현재 날짜 설정
-        final Calendar selectedDate = Calendar.getInstance();
+        // 전달받은 날짜로 초기 설정
+        final Calendar selectedDate = (initialDate != null) ? (Calendar) initialDate.clone() : Calendar.getInstance();
         updateDialogDate(tvDialogDate, selectedDate);
 
         // 이전 날짜 버튼
@@ -386,11 +559,12 @@ public class CalendarActivity extends AppCompatActivity {
         btnRegister.setOnClickListener(v -> {
             String content = etScheduleContent.getText().toString();
             if (!content.isEmpty()) {
-                saveScheduleToFirestore(
+                saveScheduleToRealtimeDatabase(
                         selectedDate.get(Calendar.YEAR),
                         selectedDate.get(Calendar.MONTH) + 1,
                         selectedDate.get(Calendar.DAY_OF_MONTH),
-                        content
+                        content,
+                        onScheduleAdded
                 );
                 dialog.dismiss();
             } else {
@@ -405,18 +579,70 @@ public class CalendarActivity extends AppCompatActivity {
     }
 
 
-    private void saveScheduleToFirestore(int year, int month, int day, String content) {
-        Map<String, Object> schedule = new HashMap<>();
-        schedule.put("year", year);
-        schedule.put("month", month);
-        schedule.put("day", day);
-        schedule.put("content", content);
+    // 일정 저장 메서드
+    private void saveScheduleToRealtimeDatabase(int year, int month, int day, String content, Runnable onScheduleAdded) {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            Toast.makeText(this, "로그인이 필요합니다.", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-        db.collection("schedule")
-                .add(schedule)
-                .addOnSuccessListener(docRef -> Toast.makeText(this, "일정이 등록되었습니다.", Toast.LENGTH_SHORT).show())
-                .addOnFailureListener(e -> Toast.makeText(this, "일정 등록에 실패했습니다.", Toast.LENGTH_SHORT).show());
+        String uid = user.getUid();
+        String dateKey = createValidDateKey(year, month, day); // 유효한 키 생성
+
+        DatabaseReference scheduleRef = FirebaseDatabase.getInstance()
+                .getReference("schedule")
+                .child(uid)
+                .child(dateKey);
+
+        // 가장 높은 order 값을 찾아 새로운 order 할당
+        scheduleRef.orderByChild("order").limitToLast(1).addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                long maxOrder = 0;
+
+                for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                    Long order = snapshot.child("order").getValue(Long.class);
+                    if (order != null) {
+                        maxOrder = Math.max(maxOrder, order);
+                    }
+                }
+
+                long newOrder = maxOrder + 1; // 새로운 order 값
+                String newKey = scheduleRef.push().getKey(); // Firebase 고유 키 생성
+
+                if (newKey != null) {
+                    Map<String, Object> schedule = new HashMap<>();
+                    schedule.put("order", newOrder);
+                    schedule.put("content", content);
+
+                    // Firebase에 새 일정 저장
+                    scheduleRef.child(newKey).setValue(schedule)
+                            .addOnSuccessListener(aVoid -> {
+                                Toast.makeText(CalendarActivity.this, "일정이 등록되었습니다.", Toast.LENGTH_SHORT).show();
+                                updateCalendar(); // 캘린더 즉시 새로고침
+                                if (onScheduleAdded != null) {
+                                    onScheduleAdded.run(); // 다이얼로그 내 일정 목록 새로고침
+                                }
+                            })
+                            .addOnFailureListener(e -> {
+                                Toast.makeText(CalendarActivity.this, "일정 등록에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                            });
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                Toast.makeText(CalendarActivity.this, "데이터베이스 오류가 발생했습니다.", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
+
+
+    private String createValidDateKey(int year, int month, int day) {
+        return String.format("%d_%02d_%02d", year, month, day);
+    }
+
 
     private void updateDialogDate(TextView tvDate, Calendar date) {
         String formattedDate = String.format("%d년 %02d월 %02d일",
