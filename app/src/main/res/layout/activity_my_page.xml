@@ -52,16 +52,18 @@
 
 
     <!-- 카테고리 스피너 -->
+
+    <!-- 카테고리 추가 버튼 -->
+
     <Spinner
         android:id="@+id/categorySpinner"
         android:layout_width="150dp"
         android:layout_height="wrap_content"
-        app:layout_constraintTop_toBottomOf="@id/myPageTitle"
-        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginStart="44dp"
         android:layout_marginTop="16dp"
-        android:layout_marginStart="16dp" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/myPageTitle" />
 
-    <!-- 카테고리 추가 버튼 -->
     <Button
         android:id="@+id/addCategoryButton"
         android:layout_width="wrap_content"
@@ -70,7 +72,8 @@
         app:layout_constraintTop_toBottomOf="@id/categorySpinner"
         app:layout_constraintStart_toStartOf="parent"
         android:layout_marginTop="16dp"
-        android:layout_marginStart="16dp" />
+        android:layout_marginStart="16dp"
+        android:visibility="gone"/>
 
     <!-- 카테고리 수정 버튼 -->
     <Button
@@ -81,7 +84,8 @@
         app:layout_constraintTop_toBottomOf="@id/categorySpinner"
         app:layout_constraintStart_toEndOf="@id/addCategoryButton"
         android:layout_marginTop="16dp"
-        android:layout_marginStart="8dp"/>
+        android:layout_marginStart="8dp"
+        android:visibility="gone"/>
 
     <!-- 카테고리 삭제 버튼 -->
     <Button
@@ -150,6 +154,19 @@
         app:layout_constraintTop_toBottomOf="@id/myPageTitle" />
 
     <!-- 검색 입력 필드 -->
+
+    <ImageView
+        android:id="@+id/menuIcon"
+        android:layout_width="28dp"
+        android:layout_height="24dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="368dp"
+        android:clickable="true"
+        android:contentDescription="Search"
+        android:src="@drawable/ic_menu"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/myPageTitle" />
+
     <EditText
         android:id="@+id/searchEditText"
         android:layout_width="240dp"

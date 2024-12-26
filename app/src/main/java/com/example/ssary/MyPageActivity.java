@@ -25,6 +25,7 @@ import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.PopupMenu;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -95,6 +96,10 @@ public class MyPageActivity extends AppCompatActivity {
 
     private Map<String, Integer> categoryColorCache = new HashMap<>();
 
+    private static final int MENU_ADD_CATEGORY = 1;
+    private static final int MENU_EDIT_CATEGORY = 2;
+    private static final int MENU_DELETE_CATEGORY = 3;
+    private static final int MENU_CHANGE_COLOR = 4;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -192,6 +197,8 @@ public class MyPageActivity extends AppCompatActivity {
         // Firestore 기본값 보장
         ensureCategoryColorsExist();
 
+        setupMenuIconClickListener();
+
 
         // ----------------------- 리스너 영역 -----------------------------
 
@@ -249,23 +256,8 @@ public class MyPageActivity extends AppCompatActivity {
 
                 // "전체"가 선택되었을 때 글 작성 버튼 숨기기
                 if (selectedCategory.equals("전체")) {
-                    addCategoryButton.setVisibility(View.VISIBLE);
-                    editCategoryButton.setVisibility(View.GONE);
-                    deleteCategoryButton.setVisibility(View.GONE);
-
-                    changeColorButton.setVisibility(View.GONE);
-
-                    writeButton.setVisibility(View.VISIBLE); // 글 작성 버튼 보이기
                     loadAllTitlesFromFirestore(); // 모든 글 로드
                 } else {
-                    // 특정 카테고리가 선택되면 글 작성 버튼 보이기
-                    addCategoryButton.setVisibility(View.VISIBLE);
-                    editCategoryButton.setVisibility(View.VISIBLE);
-                    deleteCategoryButton.setVisibility(View.VISIBLE);
-
-                    changeColorButton.setVisibility(View.VISIBLE);
-
-                    writeButton.setVisibility(View.VISIBLE); // 글 작성 버튼 보이기
                     loadTitlesFromFirestore(selectedCategory); // 특정 카테고리의 글만 로드
                 }
             }
@@ -946,5 +938,43 @@ public class MyPageActivity extends AppCompatActivity {
         }
     }
 
+    private void setupMenuIconClickListener() {
+        ImageView menuIcon = findViewById(R.id.menuIcon);
+
+        menuIcon.setOnClickListener(v -> {
+            PopupMenu popupMenu = new PopupMenu(this, menuIcon);
+            popupMenu.getMenu().add(0, MENU_ADD_CATEGORY, 0, "카테고리 추가");
+            popupMenu.getMenu().add(0, MENU_EDIT_CATEGORY, 1, "카테고리 이름 수정");
+            popupMenu.getMenu().add(0, MENU_DELETE_CATEGORY, 2, "카테고리 삭제");
+            popupMenu.getMenu().add(0, MENU_CHANGE_COLOR, 3, "카테고리 색상 설정");
+
+            popupMenu.setOnMenuItemClickListener(item -> {
+                switch (item.getItemId()) {
+                    case MENU_ADD_CATEGORY:
+                        showAddCategoryDialog();
+                        return true;
+                    case MENU_EDIT_CATEGORY:
+                        showEditCategoryDialog(getSelectedCategory());
+                        return true;
+                    case MENU_DELETE_CATEGORY:
+                        showDeleteCategoryDialog(getSelectedCategory());
+                        return true;
+                    case MENU_CHANGE_COLOR:
+                        showFixedColorPickerDialog(getSelectedCategory());
+                        return true;
+                    default:
+                        return false;
+                }
+            });
+
+            popupMenu.show();
+        });
+    }
+
+    // 현재 선택된 카테고리를 반환 (Spinner에서 선택된 값 가져오기)
+    private String getSelectedCategory() {
+        Spinner categorySpinner = findViewById(R.id.categorySpinner);
+        return categorySpinner.getSelectedItem().toString();
+    }
 
 }
