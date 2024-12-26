@@ -3,6 +3,7 @@ package com.example.ssary;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.Spannable;
@@ -19,6 +20,7 @@ import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.GridView;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -805,27 +807,23 @@ public class MyPageActivity extends AppCompatActivity {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("색상을 선택하세요");
 
-        ArrayAdapter<String> colorAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, fixedColors) {
-            @Override
-            public View getView(int position, View convertView, ViewGroup parent) {
-                View view = super.getView(position, convertView, parent);
-                TextView textView = view.findViewById(android.R.id.text1);
-                textView.setBackgroundColor(Color.parseColor(fixedColors.get(position)));
-                textView.setText("");
-                textView.setHeight(100);
-                return view;
-            }
-        };
+        // GridView로 색상 표시
+        GridView gridView = new GridView(this);
+        gridView.setNumColumns(5);
+        gridView.setAdapter(new ColorPickerAdapter(this, fixedColors));
 
-        builder.setAdapter(colorAdapter, (dialog, which) -> {
-            String selectedColor = fixedColors.get(which);
-            updateCategoryColors(category, selectedColor);
-            loadCategoryColors();
+        // 색상 선택 이벤트
+        gridView.setOnItemClickListener((parent, view, position, id) -> {
+            String selectedColor = fixedColors.get(position);
+            updateCategoryColors(category, selectedColor); // 선택된 색상 저장
+            loadCategoryColors(); // 변경된 색상 로드
         });
 
+        builder.setView(gridView);
         builder.setNegativeButton("취소", (dialog, which) -> dialog.dismiss());
         builder.show();
     }
+
 
     private void updateCategoryColors(String category, String color) {
         FirebaseUser user = auth.getCurrentUser();
@@ -904,6 +902,48 @@ public class MyPageActivity extends AppCompatActivity {
                 .addOnFailureListener(e -> {
                     Toast.makeText(this, "카테고리 색상을 불러오는 데 실패했습니다.", Toast.LENGTH_SHORT).show();
                 });
+    }
+
+    private class ColorPickerAdapter extends BaseAdapter {
+        private final Context context;
+        private final List<String> colors;
+
+        public ColorPickerAdapter(Context context, List<String> colors) {
+            this.context = context;
+            this.colors = colors;
+        }
+
+        @Override
+        public int getCount() {
+            return colors.size();
+        }
+
+        @Override
+        public Object getItem(int position) {
+            return colors.get(position);
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return position;
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            // 원형 색상 뷰 생성
+            View colorView = new View(context);
+            int size = (int) (50 * context.getResources().getDisplayMetrics().density); // 원형 크기 설정
+            colorView.setLayoutParams(new GridView.LayoutParams(size, size));
+            colorView.setBackgroundColor(Color.parseColor(colors.get(position)));
+
+            // 원형 모양 적용
+            colorView.setBackground(new GradientDrawable() {{
+                setColor(Color.parseColor(colors.get(position)));
+                setShape(GradientDrawable.OVAL);
+            }});
+
+            return colorView;
+        }
     }
 
 
