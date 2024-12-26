@@ -38,6 +38,7 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -196,14 +197,6 @@ public class MyPageActivity extends AppCompatActivity {
 
         // 글 작성 버튼 클릭 리스너
         writeButton = findViewById(R.id.writeButton);
-//        writeButton.setOnClickListener(v -> {
-//            String selectedCategory = categorySpinner.getSelectedItem().toString();
-//            Intent intentToTextfile = new Intent(MyPageActivity.this, MyNewTextActivity.class);
-//            intentToTextfile.putExtra("category", selectedCategory);
-//            startActivity(intentToTextfile);
-//        });
-
-        // 수정된 글 작성 버튼 클릭 리스너
         writeButton.setOnClickListener(v -> {
             String selectedCategory;
 
@@ -284,9 +277,30 @@ public class MyPageActivity extends AppCompatActivity {
             String selectedCategory = categorySpinner.getSelectedItem().toString();
 
             if (selectedCategory.equals("전체")) {
-                return;
-            }
+                int endIndex = selectedTitle.indexOf("]");
+                String foundTitle = selectedTitle.substring(endIndex+2);
+                String foundCategory = selectedTitle.substring(1, endIndex);  // [카테고리]에서 카테고리만 추출
+                // Firestore에서 선택된 제목과 카테고리에 해당하는 문서 ID 가져오기
+                db.collection("posts")
+                        .whereEqualTo("title", foundTitle)
+                        .whereEqualTo("category", foundCategory)
+                        .get()
+                        .addOnCompleteListener(task -> {
+                            if (task.isSuccessful() && !task.getResult().isEmpty()) {
+                                String documentId = task.getResult().getDocuments().get(0).getId();
 
+                                // MyExistTextActivity로 이동하며 선택된 카테고리, 제목, 문서 ID를 전달
+                                Intent intentToReadUpdateDelete = new Intent(MyPageActivity.this, MyExistTextActivity.class);
+                                intentToReadUpdateDelete.putExtra("title", foundTitle);
+                                intentToReadUpdateDelete.putExtra("category", foundCategory);
+                                intentToReadUpdateDelete.putExtra("documentId", documentId);  // 문서 ID 전달
+                                startActivity(intentToReadUpdateDelete);
+                            } else {
+                                Toast.makeText(MyPageActivity.this, "해당 글을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+            }
+            else {
             // Firestore에서 선택된 제목과 카테고리에 해당하는 문서 ID 가져오기
             db.collection("posts")
                     .whereEqualTo("title", selectedTitle)
@@ -306,6 +320,7 @@ public class MyPageActivity extends AppCompatActivity {
                             Toast.makeText(MyPageActivity.this, "해당 글을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show();
                         }
                     });
+            }
         });
 
 

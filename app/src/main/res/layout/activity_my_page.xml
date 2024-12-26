@@ -38,20 +38,20 @@
     </RelativeLayout>
 
     <!-- 마이페이지 제목 -->
-
-    <!-- 카테고리 스피너 -->
     <TextView
         android:id="@+id/myPageTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="64dp"
-        android:text="마이페이지"
+        android:text="마이 다이어리"
         android:textColor="@color/black"
         android:textSize="24sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+
+    <!-- 카테고리 스피너 -->
     <Spinner
         android:id="@+id/categorySpinner"
         android:layout_width="150dp"
