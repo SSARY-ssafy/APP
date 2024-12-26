@@ -171,5 +171,16 @@
                 android:layout_marginTop="8dp"/>
         </LinearLayout>
 
+        <TextView
+            android:id="@+id/no_jobs_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="채용 공고가 없습니다."
+            android:textSize="16sp"
+            android:textColor="#888888"
+            android:gravity="center"
+            android:visibility="gone"
+            android:layout_marginTop="16dp"/>
+
     </LinearLayout>
 </ScrollView>

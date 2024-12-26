@@ -4,6 +4,7 @@ package com.example.ssary;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.widget.CalendarView;
 import android.widget.FrameLayout;
 import android.widget.TextView;
@@ -17,8 +18,13 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.Query;
 import com.google.firebase.database.ValueEventListener;
+
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -75,29 +81,58 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    // Firebase에서 채용 공고 데이터를 로드하는 메서드
     private void loadJobDataFromFirebase() {
         DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference("JOB");
-        Query query = databaseReference.orderByChild("endDate").limitToFirst(12);
+        String todayDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
 
-        query.addValueEventListener(new ValueEventListener() {
+        databaseReference.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 jobList.clear();
+                Date today = new Date();
+
                 for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
                     Job job = snapshot.getValue(Job.class);
                     if (job != null) {
-                        jobList.add(job);
+                        try {
+                            Date endDate = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(job.getEndDate());
+                            if (endDate != null && endDate.after(today)) { // 마감일이 오늘 이후인 공고만 추가
+                                jobList.add(job);
+                            }
+                        } catch (ParseException e) {
+                            e.printStackTrace();
+                        }
                     }
                 }
-                mainJobAdapter = new MainJobAdapter(jobList); // jobList를 사용해 Adapter 초기화
-                recruitViewPager.setAdapter(mainJobAdapter); // ViewPager에 새로운 Adapter 설정
+
+                // 최대 4개의 공고만 표시
+                if (jobList.size() > 4) {
+                    jobList = jobList.subList(0, 4);
+                }
+
+                // ViewPager 및 "공고 없음" 메시지 제어
+                ViewPager2 recruitViewPager = findViewById(R.id.recruit_view_pager);
+                TextView noJobsText = findViewById(R.id.no_jobs_text);
+
+                if (jobList.isEmpty()) {
+                    recruitViewPager.setVisibility(View.GONE);
+                    noJobsText.setVisibility(View.VISIBLE);
+                } else {
+                    recruitViewPager.setVisibility(View.VISIBLE);
+                    noJobsText.setVisibility(View.GONE);
+                }
+
+                // 어댑터 설정
+                mainJobAdapter = new MainJobAdapter(jobList);
+                recruitViewPager.setAdapter(mainJobAdapter);
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {
-                Log.e("FirebaseData", "Failed to load data.", databaseError.toException());
+                Log.e("MainActivity", "Error fetching data: " + databaseError.getMessage());
             }
         });
     }
+
+
 }

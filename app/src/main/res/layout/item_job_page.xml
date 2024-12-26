@@ -9,8 +9,10 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="8dp">
+        android:padding="8dp"
+        android:gravity="center_vertical">
 
+        <!-- D-Day -->
         <TextView
             android:id="@+id/tv_d_day_1"
             android:layout_width="40dp"
@@ -18,25 +20,33 @@
             android:text="D-1"
             android:gravity="center"
             android:background="@drawable/bg_circle_orange"
-            android:textColor="@android:color/white"/>
+            android:textColor="@android:color/white"
+            android:textStyle="bold"/>
 
+        <!-- 회사명 -->
         <TextView
             android:id="@+id/tv_company_name_1"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:layout_weight="2"
             android:text="회사명"
             android:textSize="16sp"
             android:textStyle="bold"
-            android:paddingStart="8dp"/>
+            android:paddingStart="8dp"
+            android:singleLine="false"/>
 
+        <!-- 직무 -->
         <TextView
             android:id="@+id/tv_job_position_1"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:text="채용 직무"
             android:textSize="14sp"
-            android:textColor="#757575"/>
+            android:textColor="#757575"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:gravity="end"/>
     </LinearLayout>
 
     <!-- 두 번째 공고 -->
@@ -44,34 +54,41 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="8dp">
+        android:padding="8dp"
+        android:gravity="center_vertical">
 
         <TextView
             android:id="@+id/tv_d_day_2"
             android:layout_width="40dp"
             android:layout_height="wrap_content"
-            android:text="D-1"
+            android:text="D-2"
             android:gravity="center"
             android:background="@drawable/bg_circle_orange"
-            android:textColor="@android:color/white"/>
+            android:textColor="@android:color/white"
+            android:textStyle="bold"/>
 
         <TextView
             android:id="@+id/tv_company_name_2"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:layout_weight="2"
             android:text="회사명"
             android:textSize="16sp"
             android:textStyle="bold"
-            android:paddingStart="8dp"/>
+            android:paddingStart="8dp"
+            android:singleLine="false"/>
 
         <TextView
             android:id="@+id/tv_job_position_2"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:text="채용 직무"
             android:textSize="14sp"
-            android:textColor="#757575"/>
+            android:textColor="#757575"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:gravity="end"/>
     </LinearLayout>
 
     <!-- 세 번째 공고 -->
@@ -79,34 +96,41 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="8dp">
+        android:padding="8dp"
+        android:gravity="center_vertical">
 
         <TextView
             android:id="@+id/tv_d_day_3"
             android:layout_width="40dp"
             android:layout_height="wrap_content"
-            android:text="D-1"
+            android:text="D-3"
             android:gravity="center"
             android:background="@drawable/bg_circle_orange"
-            android:textColor="@android:color/white"/>
+            android:textColor="@android:color/white"
+            android:textStyle="bold"/>
 
         <TextView
             android:id="@+id/tv_company_name_3"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:layout_weight="2"
             android:text="회사명"
             android:textSize="16sp"
             android:textStyle="bold"
-            android:paddingStart="8dp"/>
+            android:paddingStart="8dp"
+            android:singleLine="false"/>
 
         <TextView
             android:id="@+id/tv_job_position_3"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:text="채용 직무"
             android:textSize="14sp"
-            android:textColor="#757575"/>
+            android:textColor="#757575"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:gravity="end"/>
     </LinearLayout>
 
     <!-- 네 번째 공고 -->
@@ -114,34 +138,41 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="8dp">
+        android:padding="8dp"
+        android:gravity="center_vertical">
 
         <TextView
             android:id="@+id/tv_d_day_4"
             android:layout_width="40dp"
             android:layout_height="wrap_content"
-            android:text="D-1"
+            android:text="D-4"
             android:gravity="center"
             android:background="@drawable/bg_circle_orange"
-            android:textColor="@android:color/white"/>
+            android:textColor="@android:color/white"
+            android:textStyle="bold"/>
 
         <TextView
             android:id="@+id/tv_company_name_4"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:layout_weight="2"
             android:text="회사명"
             android:textSize="16sp"
             android:textStyle="bold"
-            android:paddingStart="8dp"/>
+            android:paddingStart="8dp"
+            android:singleLine="false"/>
 
         <TextView
             android:id="@+id/tv_job_position_4"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:text="채용 직무"
             android:textSize="14sp"
-            android:textColor="#757575"/>
+            android:textColor="#757575"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:gravity="end"/>
     </LinearLayout>
 
 </LinearLayout>
