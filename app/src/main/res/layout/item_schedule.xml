@@ -12,18 +12,24 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:text="일정 내용"
-        android:textSize="14sp" />
+        android:textSize="16sp" />
 
     <Button
         android:id="@+id/btnEdit"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="수정" />
+        android:layout_width="60dp"
+        android:layout_height="40dp"
+        android:backgroundTint="#FFC107"
+        android:text="수정"
+        android:textColor="@android:color/white"
+        android:textSize="14sp" />
 
     <Button
         android:id="@+id/btnDelete"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="60dp"
+        android:layout_height="40dp"
+        android:backgroundTint="#F44336"
         android:text="삭제"
-        android:layout_marginStart="8dp" />
+        android:textColor="@android:color/white"
+        android:layout_marginStart="8dp"
+        android:textSize="14sp" />
 </LinearLayout>
