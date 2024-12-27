@@ -3,6 +3,7 @@ package com.example.ssary;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.Spannable;
@@ -19,10 +20,12 @@ import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.GridView;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.PopupMenu;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -38,6 +41,7 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -92,6 +96,10 @@ public class MyPageActivity extends AppCompatActivity {
 
     private Map<String, Integer> categoryColorCache = new HashMap<>();
 
+    private static final int MENU_ADD_CATEGORY = 1;
+    private static final int MENU_EDIT_CATEGORY = 2;
+    private static final int MENU_DELETE_CATEGORY = 3;
+    private static final int MENU_CHANGE_COLOR = 4;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -189,6 +197,8 @@ public class MyPageActivity extends AppCompatActivity {
         // Firestore 기본값 보장
         ensureCategoryColorsExist();
 
+        setupMenuIconClickListener();
+
 
         // ----------------------- 리스너 영역 -----------------------------
 
@@ -196,14 +206,6 @@ public class MyPageActivity extends AppCompatActivity {
 
         // 글 작성 버튼 클릭 리스너
         writeButton = findViewById(R.id.writeButton);
-//        writeButton.setOnClickListener(v -> {
-//            String selectedCategory = categorySpinner.getSelectedItem().toString();
-//            Intent intentToTextfile = new Intent(MyPageActivity.this, MyNewTextActivity.class);
-//            intentToTextfile.putExtra("category", selectedCategory);
-//            startActivity(intentToTextfile);
-//        });
-
-        // 수정된 글 작성 버튼 클릭 리스너
         writeButton.setOnClickListener(v -> {
             String selectedCategory;
 
@@ -254,23 +256,8 @@ public class MyPageActivity extends AppCompatActivity {
 
                 // "전체"가 선택되었을 때 글 작성 버튼 숨기기
                 if (selectedCategory.equals("전체")) {
-                    addCategoryButton.setVisibility(View.VISIBLE);
-                    editCategoryButton.setVisibility(View.GONE);
-                    deleteCategoryButton.setVisibility(View.GONE);
-
-                    changeColorButton.setVisibility(View.GONE);
-
-                    writeButton.setVisibility(View.VISIBLE); // 글 작성 버튼 보이기
                     loadAllTitlesFromFirestore(); // 모든 글 로드
                 } else {
-                    // 특정 카테고리가 선택되면 글 작성 버튼 보이기
-                    addCategoryButton.setVisibility(View.VISIBLE);
-                    editCategoryButton.setVisibility(View.VISIBLE);
-                    deleteCategoryButton.setVisibility(View.VISIBLE);
-
-                    changeColorButton.setVisibility(View.VISIBLE);
-
-                    writeButton.setVisibility(View.VISIBLE); // 글 작성 버튼 보이기
                     loadTitlesFromFirestore(selectedCategory); // 특정 카테고리의 글만 로드
                 }
             }
@@ -284,9 +271,30 @@ public class MyPageActivity extends AppCompatActivity {
             String selectedCategory = categorySpinner.getSelectedItem().toString();
 
             if (selectedCategory.equals("전체")) {
-                return;
-            }
+                int endIndex = selectedTitle.indexOf("]");
+                String foundTitle = selectedTitle.substring(endIndex+2);
+                String foundCategory = selectedTitle.substring(1, endIndex);  // [카테고리]에서 카테고리만 추출
+                // Firestore에서 선택된 제목과 카테고리에 해당하는 문서 ID 가져오기
+                db.collection("posts")
+                        .whereEqualTo("title", foundTitle)
+                        .whereEqualTo("category", foundCategory)
+                        .get()
+                        .addOnCompleteListener(task -> {
+                            if (task.isSuccessful() && !task.getResult().isEmpty()) {
+                                String documentId = task.getResult().getDocuments().get(0).getId();
 
+                                // MyExistTextActivity로 이동하며 선택된 카테고리, 제목, 문서 ID를 전달
+                                Intent intentToReadUpdateDelete = new Intent(MyPageActivity.this, MyExistTextActivity.class);
+                                intentToReadUpdateDelete.putExtra("title", foundTitle);
+                                intentToReadUpdateDelete.putExtra("category", foundCategory);
+                                intentToReadUpdateDelete.putExtra("documentId", documentId);  // 문서 ID 전달
+                                startActivity(intentToReadUpdateDelete);
+                            } else {
+                                Toast.makeText(MyPageActivity.this, "해당 글을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+            }
+            else {
             // Firestore에서 선택된 제목과 카테고리에 해당하는 문서 ID 가져오기
             db.collection("posts")
                     .whereEqualTo("title", selectedTitle)
@@ -306,6 +314,7 @@ public class MyPageActivity extends AppCompatActivity {
                             Toast.makeText(MyPageActivity.this, "해당 글을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show();
                         }
                     });
+            }
         });
 
 
@@ -790,27 +799,23 @@ public class MyPageActivity extends AppCompatActivity {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("색상을 선택하세요");
 
-        ArrayAdapter<String> colorAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, fixedColors) {
-            @Override
-            public View getView(int position, View convertView, ViewGroup parent) {
-                View view = super.getView(position, convertView, parent);
-                TextView textView = view.findViewById(android.R.id.text1);
-                textView.setBackgroundColor(Color.parseColor(fixedColors.get(position)));
-                textView.setText("");
-                textView.setHeight(100);
-                return view;
-            }
-        };
+        // GridView로 색상 표시
+        GridView gridView = new GridView(this);
+        gridView.setNumColumns(5);
+        gridView.setAdapter(new ColorPickerAdapter(this, fixedColors));
 
-        builder.setAdapter(colorAdapter, (dialog, which) -> {
-            String selectedColor = fixedColors.get(which);
-            updateCategoryColors(category, selectedColor);
-            loadCategoryColors();
+        // 색상 선택 이벤트
+        gridView.setOnItemClickListener((parent, view, position, id) -> {
+            String selectedColor = fixedColors.get(position);
+            updateCategoryColors(category, selectedColor); // 선택된 색상 저장
+            loadCategoryColors(); // 변경된 색상 로드
         });
 
+        builder.setView(gridView);
         builder.setNegativeButton("취소", (dialog, which) -> dialog.dismiss());
         builder.show();
     }
+
 
     private void updateCategoryColors(String category, String color) {
         FirebaseUser user = auth.getCurrentUser();
@@ -891,5 +896,85 @@ public class MyPageActivity extends AppCompatActivity {
                 });
     }
 
+    private class ColorPickerAdapter extends BaseAdapter {
+        private final Context context;
+        private final List<String> colors;
+
+        public ColorPickerAdapter(Context context, List<String> colors) {
+            this.context = context;
+            this.colors = colors;
+        }
+
+        @Override
+        public int getCount() {
+            return colors.size();
+        }
+
+        @Override
+        public Object getItem(int position) {
+            return colors.get(position);
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return position;
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            // 원형 색상 뷰 생성
+            View colorView = new View(context);
+            int size = (int) (50 * context.getResources().getDisplayMetrics().density); // 원형 크기 설정
+            colorView.setLayoutParams(new GridView.LayoutParams(size, size));
+            colorView.setBackgroundColor(Color.parseColor(colors.get(position)));
+
+            // 원형 모양 적용
+            colorView.setBackground(new GradientDrawable() {{
+                setColor(Color.parseColor(colors.get(position)));
+                setShape(GradientDrawable.OVAL);
+            }});
+
+            return colorView;
+        }
+    }
+
+    private void setupMenuIconClickListener() {
+        ImageView menuIcon = findViewById(R.id.menuIcon);
+
+        menuIcon.setOnClickListener(v -> {
+            PopupMenu popupMenu = new PopupMenu(this, menuIcon);
+            popupMenu.getMenu().add(0, MENU_ADD_CATEGORY, 0, "카테고리 추가");
+            popupMenu.getMenu().add(0, MENU_EDIT_CATEGORY, 1, "카테고리 이름 수정");
+            popupMenu.getMenu().add(0, MENU_DELETE_CATEGORY, 2, "카테고리 삭제");
+            popupMenu.getMenu().add(0, MENU_CHANGE_COLOR, 3, "카테고리 색상 설정");
+
+            popupMenu.setOnMenuItemClickListener(item -> {
+                switch (item.getItemId()) {
+                    case MENU_ADD_CATEGORY:
+                        showAddCategoryDialog();
+                        return true;
+                    case MENU_EDIT_CATEGORY:
+                        showEditCategoryDialog(getSelectedCategory());
+                        return true;
+                    case MENU_DELETE_CATEGORY:
+                        showDeleteCategoryDialog(getSelectedCategory());
+                        return true;
+                    case MENU_CHANGE_COLOR:
+                        showFixedColorPickerDialog(getSelectedCategory());
+                        return true;
+                    default:
+                        return false;
+                }
+            });
+
+            popupMenu.show();
+        });
+    }
+
+    // 현재 선택된 카테고리를 반환 (Spinner에서 선택된 값 가져오기)
+    private String getSelectedCategory() {
+        Spinner categorySpinner = findViewById(R.id.categorySpinner);
+        return categorySpinner.getSelectedItem().toString();
+    }
 
 }
