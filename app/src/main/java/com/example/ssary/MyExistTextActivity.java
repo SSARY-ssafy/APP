@@ -44,6 +44,7 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
+import java.text.BreakIterator;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -352,7 +353,9 @@ public class MyExistTextActivity extends AppCompatActivity {
             View fileItemView = LayoutInflater.from(this).inflate(R.layout.my_exist_text_uploaded_file, uploadedFileContainer, false);
 
             TextView fileTextView = fileItemView.findViewById(R.id.uploadedFileTextView);
-            fileTextView.setText(fileName);
+
+            String displayName = truncateFileName(fileName);
+            fileTextView.setText(displayName);
             fileTextView.setOnClickListener(v -> openFile(fileUri));
 
             ImageView downloadFileButton = fileItemView.findViewById(R.id.downloadFileButton);
@@ -386,6 +389,23 @@ public class MyExistTextActivity extends AppCompatActivity {
 
             uploadedFileContainer.addView(fileItemView);
         }
+    }
+
+    // 파일 이름을 원하는 길이로 줄이는 메서드
+    private String truncateFileName(String fileName) {
+        BreakIterator charIterator = BreakIterator.getCharacterInstance();
+        charIterator.setText(fileName);
+        int maxLength = 40;
+
+        int endIndex = 0;
+        int count = 0;
+
+        while (charIterator.next() != BreakIterator.DONE) {
+            if (++count > maxLength) break;
+            endIndex = charIterator.current();
+        }
+
+        return count > maxLength ? fileName.substring(0, endIndex) + "..." : fileName;
     }
 
     // HTML 콘텐츠를 Spannable로 변환
