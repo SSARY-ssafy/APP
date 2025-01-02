@@ -79,15 +79,19 @@ public class MainJobAdapter extends RecyclerView.Adapter<MainJobAdapter.JobPageV
                     Job job = jobsForPage.get(i);
                     int daysRemaining = calculateDaysRemaining(job.getEndDate());
                     tvDDayArray[i].setText("D-" + daysRemaining);
+                    tvDDayArray[i].setVisibility(View.VISIBLE); // 보이게 설정
                     tvCompanyNameArray[i].setText(job.getCompanyName());
+                    tvCompanyNameArray[i].setVisibility(View.VISIBLE); // 보이게 설정
                     tvJobPositionArray[i].setText(job.getJobPosition());
+                    tvJobPositionArray[i].setVisibility(View.VISIBLE); // 보이게 설정
                 } else {
-                    tvDDayArray[i].setText("");
-                    tvCompanyNameArray[i].setText("");
-                    tvJobPositionArray[i].setText("");
+                    tvDDayArray[i].setVisibility(View.GONE); // 숨김
+                    tvCompanyNameArray[i].setVisibility(View.GONE); // 숨김
+                    tvJobPositionArray[i].setVisibility(View.GONE); // 숨김
                 }
             }
         }
+
 
         private int calculateDaysRemaining(String endDate) {
             try {
