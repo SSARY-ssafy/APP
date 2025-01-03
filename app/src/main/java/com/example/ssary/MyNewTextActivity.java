@@ -718,54 +718,70 @@ public class MyNewTextActivity extends AppCompatActivity {
     }
 
     // 텍스트를 HTML 스타일로 변환
-    private String convertToHtmlStyledContent(String content) {
+    private String convertToHtmlStyledContent() {
         StringBuilder htmlContent = new StringBuilder();
         Editable text = contentEditText.getText();
 
-        boolean isBold = false, isItalic = false, isUnderline = false, isStrikethrough = false;
+        // 이미지 데이터 정렬 (위치 기준)
+        imageData.sort(Comparator.comparingInt(a -> Integer.parseInt(a.get("imagePosition"))));
 
-        for (int i = 0; i < content.length(); i++) {
-            char ch = content.charAt(i);
+        int currentIndex = 0; // 텍스트의 현재 위치
+        int imageIndex = 0; // 이미지 데이터의 현재 인덱스
 
-            boolean bold = false, italic = false, underline = false, strikethrough = false;
+        while (currentIndex < text.length() || imageIndex < imageData.size()) {
+            int imagePosition = imageIndex < imageData.size()
+                    ? Integer.parseInt(imageData.get(imageIndex).get("imagePosition"))
+                    : Integer.MAX_VALUE;
 
-            // 현재 위치의 스타일 검사
-            for (StyleSpan span : text.getSpans(i, i + 1, StyleSpan.class)) {
-                if (span.getStyle() == Typeface.BOLD) bold = true;
-                if (span.getStyle() == Typeface.ITALIC) italic = true;
+            if (currentIndex < imagePosition) {
+                // 텍스트 처리
+                char ch = text.charAt(currentIndex++);
+                if (ch == '\n') {
+                    htmlContent.append("<br>"); // 개행 문자를 <br>로 변환
+                } else {
+                    htmlContent.append(processStyledCharacter(text, currentIndex - 1, ch));
+                }
+            } else {
+                Map<String, String> imageInfo = imageData.get(imageIndex++);
+                String imageUrl = imageInfo.get("imageUrl");
+                if (imageUrl != null && !imageUrl.isEmpty()) {
+                    htmlContent.append("<img src=\"").append(imageUrl).append("\" />");
+                }
             }
-            if (text.getSpans(i, i + 1, UnderlineSpan.class).length > 0) underline = true;
-            if (text.getSpans(i, i + 1, StrikethroughSpan.class).length > 0) strikethrough = true;
-
-            // 스타일이 변경되면 이전 스타일 태그 닫기
-            if (isBold && !bold) htmlContent.append("</b>");
-            if (isItalic && !italic) htmlContent.append("</i>");
-            if (isUnderline && !underline) htmlContent.append("</u>");
-            if (isStrikethrough && !strikethrough) htmlContent.append("</s>");
-
-            // 새로운 스타일 태그 열기
-            if (!isBold && bold) htmlContent.append("<b>");
-            if (!isItalic && italic) htmlContent.append("<i>");
-            if (!isUnderline && underline) htmlContent.append("<u>");
-            if (!isStrikethrough && strikethrough) htmlContent.append("<s>");
-
-            // 현재 문자 추가
-            htmlContent.append(ch);
-
-            // 현재 스타일 상태 업데이트
-            isBold = bold;
-            isItalic = italic;
-            isUnderline = underline;
-            isStrikethrough = strikethrough;
         }
 
-        // 남아있는 스타일 태그 닫기
-        if (isStrikethrough) htmlContent.append("</s>");
-        if (isUnderline) htmlContent.append("</u>");
-        if (isItalic) htmlContent.append("</i>");
-        if (isBold) htmlContent.append("</b>");
-
         return htmlContent.toString();
+    }
+
+    private String processStyledCharacter(Editable text, int position, char ch) {
+        StringBuilder result = new StringBuilder();
+
+        // 스타일 확인
+        boolean isBold = false, isItalic = false, isUnderline = false, isStrikethrough = false;
+
+        for (StyleSpan span : text.getSpans(position, position + 1, StyleSpan.class)) {
+            if (span.getStyle() == Typeface.BOLD) isBold = true;
+            if (span.getStyle() == Typeface.ITALIC) isItalic = true;
+        }
+        if (text.getSpans(position, position + 1, UnderlineSpan.class).length > 0) isUnderline = true;
+        if (text.getSpans(position, position + 1, StrikethroughSpan.class).length > 0) isStrikethrough = true;
+
+        // HTML 스타일 태그 추가
+        if (isBold) result.append("<b>");
+        if (isItalic) result.append("<i>");
+        if (isUnderline) result.append("<u>");
+        if (isStrikethrough) result.append("<s>");
+
+        // 텍스트 추가
+        result.append(ch);
+
+        // 닫는 태그 추가
+        if (isStrikethrough) result.append("</s>");
+        if (isUnderline) result.append("</u>");
+        if (isItalic) result.append("</i>");
+        if (isBold) result.append("</b>");
+
+        return result.toString();
     }
 
 }
