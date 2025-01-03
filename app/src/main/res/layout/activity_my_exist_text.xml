@@ -207,6 +207,32 @@
             android:contentDescription="Image Icon"
             android:layout_marginEnd="8dp"
             android:layout_gravity="center_vertical" />
+
+        <!-- Spacer -->
+        <View
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1" />
+
+        <!-- undo 버튼 -->
+        <ImageView
+            android:id="@+id/undoButton"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:src="@drawable/ic_undo"
+            android:contentDescription="Undo Icon"
+            android:layout_marginEnd="8dp"
+            android:layout_gravity="center_vertical" />
+
+        <!-- redo 버튼 -->
+        <ImageView
+            android:id="@+id/redoButton"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginEnd="8dp"
+            android:contentDescription="Redo Icon"
+            android:src="@drawable/ic_redo" />
     </LinearLayout>
 
     <!-- 하단 HR -->

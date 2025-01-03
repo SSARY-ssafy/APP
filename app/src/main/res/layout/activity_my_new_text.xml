@@ -42,7 +42,7 @@
     <Spinner
         android:id="@+id/categorySpinner"
         android:layout_width="190dp"
-        android:layout_height="37dp"
+        android:layout_height="48dp"
         android:layout_margin="16dp"
         android:layout_marginTop="28dp"
         app:layout_constraintEnd_toEndOf="parent"
@@ -179,6 +179,32 @@
             android:contentDescription="Image Icon"
             android:layout_marginEnd="8dp"
             android:layout_gravity="center_vertical" />
+
+        <!-- Spacer -->
+        <View
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1" />
+
+        <!-- undo 버튼 -->
+        <ImageView
+            android:id="@+id/undoButton"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:src="@drawable/ic_undo"
+            android:contentDescription="Undo Icon"
+            android:layout_marginEnd="8dp"
+            android:layout_gravity="center_vertical" />
+
+        <!-- redo 버튼 -->
+        <ImageView
+            android:id="@+id/redoButton"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginEnd="8dp"
+            android:contentDescription="Redo Icon"
+            android:src="@drawable/ic_redo" />
     </LinearLayout>
 
     <!-- 하단 HR -->
@@ -203,6 +229,17 @@
         android:layout_marginStart="16dp"
         android:visibility="gone" />
 
+    <LinearLayout
+        android:id="@+id/imageContainer"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintTop_toBottomOf="@id/formattingButtonsContainer"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="16dp"
+        android:padding="8dp" />
+
     <!-- 내용 입력 -->
     <EditText
         android:id="@+id/contentEditText"
@@ -223,5 +260,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/uploadedFileContainer"
         app:layout_constraintWidth_percent="0.9" />
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>

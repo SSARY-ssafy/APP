@@ -1,5 +1,5 @@
 /* 로직
-해당 글 클릭 시 -> loadPostFromDataBase() -> updateUploadedFilesUI() -> addFilesToContainer()
+해당 글 클릭 시 -> loadPostFromDB() -> updateUploadedFilesUI() -> addFilesToContainer()
 해당 글 저장 버튼 클릭 -> updatePost() -> deleteFilesFromStorage() -> uploadNewFileAndUpdatePost() -> saveUpdatedPost()
 해당 글 삭제 버튼 클릭 -> deletePost() -> deleteFilesFromStorage() or deletePostFromDB()
  */
@@ -11,6 +11,7 @@ import android.app.DownloadManager;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
@@ -18,6 +19,7 @@ import android.text.Editable;
 import android.text.Html;
 import android.text.Spannable;
 import android.text.TextWatcher;
+import android.text.style.ImageSpan;
 import android.text.style.StrikethroughSpan;
 import android.text.style.StyleSpan;
 import android.text.style.UnderlineSpan;
@@ -40,39 +42,73 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 import android.content.Context;
 import android.os.Environment;
 
+import com.example.ssary.ui.theme.UndoRedoManager;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
+import java.net.URL;
 import java.text.BreakIterator;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class MyExistTextActivity extends AppCompatActivity {
 
     private EditText titleEditText, contentEditText;
     private LinearLayout uploadedFileContainer;
-    private ImageView boldButton, italicButton, underlineButton, strikethroughButton, uploadFileButton, imageButton;
-    private Button savePostButton, updatePostButton, deletePostButton;
+    private ImageView boldButton, italicButton, underlineButton, strikethroughButton, uploadFileButton, imageButton, undoButton, redoButton;
+    private UndoRedoManager undoRedoManager;
+    private Button submitPostButton, updatePostButton, deletePostButton;
     private FirebaseFirestore db;
     private FirebaseStorage storage;
+
+    private final AtomicInteger completedTasks = new AtomicInteger(0);
+    private final int totalTasks = 4;
+    private final AtomicInteger deletedTasks = new AtomicInteger(0);
+    private final int totaldeleteTasks = 2;
+    private List<Map<String, String>> imageData = new ArrayList<>();
+    private List<Map<String, String>> fileData = new ArrayList<>();
+
+    private final List<Uri> curImageUris = new ArrayList<>();
+    private final List<String> curImageNames = new ArrayList<>();
+    private final List<Integer> curImagePositions = new ArrayList<>();
+
+    private final List<Uri> existedImageUris = new ArrayList<>();
+    private final List<String> existedImageNames = new ArrayList<>();
+    private final List<Integer> existedImagePositions = new ArrayList<>();
+
+    private final List<Uri> deletedImageUris = new ArrayList<>();
+
+    private final List<Uri> updatedImageUris = new ArrayList<>();
+    private final List<String> updatedImageNames = new ArrayList<>();
+    private final List<Integer> updatedImagePositions = new ArrayList<>();
+
+
     private final List<Uri> existedFileUris = new ArrayList<>();
     private final List<String> existedFileExtensions = new ArrayList<>();
     private final List<String> existedFileNames = new ArrayList<>();
+
     private final List<Uri> deletedFileUris = new ArrayList<>();
+
     private final List<Uri> updatedFileUris = new ArrayList<>();
     private final List<String> updatedFileNames = new ArrayList<>();
+
     private boolean isEditing = false;
     private Spinner categorySpinner;
     private ArrayList<String> categoryList;
     private ArrayAdapter<String> categoryAdapter;
 
     private String documentId;
+    private boolean isUndoRedoAction = false;
     private boolean isBold = false, isItalic = false, isUnderline = false, isStrikethrough = false;
+    private ImageSpan deletedImageSpan;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -91,9 +127,14 @@ public class MyExistTextActivity extends AppCompatActivity {
         strikethroughButton = findViewById(R.id.strikethroughButton);
         uploadFileButton = findViewById(R.id.uploadFileButton);
 
+        imageButton = findViewById(R.id.imageButton);
+        undoButton = findViewById(R.id.undoButton);
+        redoButton = findViewById(R.id.redoButton);
+        undoRedoManager = new UndoRedoManager();
+
         updatePostButton = findViewById(R.id.updatePostButton);
         deletePostButton = findViewById(R.id.deletePostButton);
-        savePostButton = findViewById(R.id.savePostButton);
+        submitPostButton = findViewById(R.id.savePostButton);
 
         categorySpinner = findViewById(R.id.categorySpinner);
         categoryList = new ArrayList<>();
@@ -104,29 +145,218 @@ public class MyExistTextActivity extends AppCompatActivity {
         categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         categorySpinner.setAdapter(categoryAdapter);
 
-        Intent intent = getIntent();
-        String selectedCategory = intent.getStringExtra("category");
+        String selectedCategory = getIntent().getStringExtra("category");
         if (selectedCategory != null && !selectedCategory.isEmpty()) {
-            int position = categoryList.indexOf(selectedCategory);
-            if (position >= 0) {
-                categorySpinner.setSelection(position);
-            }
+            categorySpinner.setSelection(categoryList.indexOf(selectedCategory));
         }
 
-        documentId = intent.getStringExtra("documentId");
+        documentId = getIntent().getStringExtra("documentId");
         enableEditing(false);
         loadPostFromDB(documentId);
 
-        savePostButton.setOnClickListener(v -> updatePost());
+        submitPostButton.setOnClickListener(v -> submitPost());
+        uploadFileButton.setOnClickListener(v -> selectFiles());
+
         updatePostButton.setOnClickListener(v -> {
             enableEditing(true);
-            updateTitleEditTextConstraint(savePostButton.getId());
+            updateTitleEditTextConstraint(submitPostButton.getId());
         });
         deletePostButton.setOnClickListener(v -> deletePost());
-        uploadFileButton.setOnClickListener(v -> selectFiles());
 
         setupButtonListeners();
         setupTextWatcher();
+
+
+        // 텍스트 변경 이벤트 처리
+        contentEditText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+//                applyCurrentStyleToInput();
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                if (!isUndoRedoAction) {
+                    // UndoRedoManager에 현재 상태 저장
+                    undoRedoManager.saveState(new UndoRedoManager.State(
+                            s.toString(), // 텍스트 내용
+                            new ArrayList<>(curImageUris), // 이미지 URI 리스트 복사
+                            new ArrayList<>(curImageNames), // 이미지 이름 리스트 복사
+                            new ArrayList<>(curImagePositions) // 이미지 위치 리스트 복사
+                    ));
+                    updateUndoRedoButtons(); // 버튼 활성화 상태 업데이트
+                }
+            }
+        });
+
+        // Undo 버튼 클릭 리스너
+        undoButton.setOnClickListener(v -> {
+            if (undoRedoManager.canUndo()) {
+                isUndoRedoAction = true;
+                UndoRedoManager.State previousState = undoRedoManager.undo();
+
+                // 상태 복원
+                restoreState(previousState);
+
+                isUndoRedoAction = false;
+            }
+            updateUndoRedoButtons();
+        });
+
+        // Redo 버튼 클릭 리스너
+        redoButton.setOnClickListener(v -> {
+            if (undoRedoManager.canRedo()) {
+                isUndoRedoAction = true;
+                UndoRedoManager.State nextState = undoRedoManager.redo();
+
+                // 상태 복원
+                restoreState(nextState);
+
+                isUndoRedoAction = false;
+            }
+            updateUndoRedoButtons();
+        });
+
+        // 버튼 초기 상태 설정
+        updateUndoRedoButtons();
+    }
+
+    // Undo/Redo 버튼 활성화 상태 업데이트
+    private void updateUndoRedoButtons() {
+        undoButton.setEnabled(undoRedoManager.canUndo());
+        redoButton.setEnabled(undoRedoManager.canRedo());
+        undoButton.setAlpha(undoRedoManager.canUndo() ? 1.0f : 0.5f);
+        redoButton.setAlpha(undoRedoManager.canRedo() ? 1.0f : 0.5f);
+    }
+
+    // ActivityResultLauncher를 등록하여 이미지를 선택한 결과를 처리
+    private final ActivityResultLauncher<Intent> imagePickerLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                    Uri imageUri = result.getData().getData();
+                    insertImageAtCursor(imageUri);
+                }
+            }
+    );
+
+    // 선택한 이미지를 contentEditText의 현재 커서 위치에 삽입
+    private void insertImageAtCursor(Uri imageUri) {
+        try {
+            Drawable drawable = Drawable.createFromStream(
+                    getContentResolver().openInputStream(imageUri),
+                    null
+            );
+            assert drawable != null;
+            drawable.setBounds(0, 0, drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight());
+
+            // 커서 위치에 이미지 추가
+            int position = contentEditText.getSelectionEnd();
+            Editable text = contentEditText.getText();
+            ImageSpan imageSpan = new ImageSpan(drawable, ImageSpan.ALIGN_BASELINE);
+            text.insert(position, " "); // 이미지 자리 확보
+            text.setSpan(imageSpan, position, position + 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+            // 업데이트 이미지
+            updatedImageUris.add(imageUri);
+            updatedImageNames.add(getFileName(imageUri));
+            updatedImagePositions.add(position);
+
+            // 기존 + 업데이트 이미지
+            curImageUris.add(imageUri);
+            curImageNames.add(getFileName(imageUri));
+            curImagePositions.add(position);
+
+            // 상태 저장
+            undoRedoManager.saveState(new UndoRedoManager.State(
+                    contentEditText.getText().toString(),
+                    curImageUris,
+                    curImageNames,
+                    curImagePositions
+            ));
+
+            updateUndoRedoButtons();
+        } catch (Exception e) {
+            Toast.makeText(this, "이미지를 삽입할 수 없습니다.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void restoreState(UndoRedoManager.State state) {
+        // 텍스트 복원
+        contentEditText.setText(state.text);
+
+        // 이미지 복원
+        curImageUris.clear();
+        curImageNames.clear();
+        curImagePositions.clear();
+
+        curImageUris.addAll(state.imageUris);
+        curImageNames.addAll(state.imageNames);
+        curImagePositions.addAll(state.imagePositions);
+
+        // 이미지 상태 복원
+        manageDeletedAndExistedImages(state);
+
+        // UI에서 이미지 재삽입
+        for (int i = 0; i < curImageUris.size(); i++) {
+            insertImageAtPosition(curImageUris.get(i), curImagePositions.get(i));
+        }
+
+        // 커서 위치 조정
+        contentEditText.setSelection(state.text.length());
+    }
+
+    // Undo & Redo 시, 이미지 삭제 및 추가 메서드
+    private void manageDeletedAndExistedImages(UndoRedoManager.State state) {
+        // Undo 시, 삭제된 이미지 관리
+        for (Uri imageUri : existedImageUris) {
+            if (!state.imageUris.contains(imageUri)) {
+                // 삭제된 이미지 추가
+                deletedImageUris.add(imageUri);
+
+                int index = existedImageUris.indexOf(imageUri);
+                if (index != -1) {
+                    existedImageUris.remove(index);
+                    existedImageNames.remove(index);
+                    existedImagePositions.remove(index);
+                }
+            }
+        }
+
+        // Redo 시, 복구된 이미지 관리
+        for (Uri imageUri : state.imageUris) {
+            if (deletedImageUris.contains(imageUri)) {
+                // 복구된 이미지 제거
+                deletedImageUris.remove(imageUri);
+
+                if (!existedImageUris.contains(imageUri)) {
+                    existedImageUris.add(imageUri);
+                    existedImageNames.add(state.imageNames.get(state.imageUris.indexOf(imageUri)));
+                    existedImagePositions.add(state.imagePositions.get(state.imageUris.indexOf(imageUri)));
+                }
+            }
+        }
+    }
+
+    private void insertImageAtPosition(Uri imageUri, int position) {
+        try {
+            Drawable drawable = Drawable.createFromStream(
+                    getContentResolver().openInputStream(imageUri),
+                    null
+            );
+            assert drawable != null;
+            drawable.setBounds(0, 0, drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight());
+
+            Editable text = contentEditText.getText();
+            ImageSpan imageSpan = new ImageSpan(drawable, ImageSpan.ALIGN_BASELINE);
+            text.insert(position, " "); // 이미지 자리 확보
+            text.setSpan(imageSpan, position, position + 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        } catch (Exception e) {
+            Toast.makeText(this, "이미지를 복원할 수 없습니다.", Toast.LENGTH_SHORT).show();
+        }
     }
 
     // 수정 모드일 때, 제목의 위치 재설정
@@ -150,7 +380,7 @@ public class MyExistTextActivity extends AppCompatActivity {
 
         if (isEditable) {
             uploadFileButton.setVisibility(View.VISIBLE);
-            savePostButton.setVisibility(View.VISIBLE);
+            submitPostButton.setVisibility(View.VISIBLE);
             updatePostButton.setVisibility(View.GONE);
             deletePostButton.setVisibility(View.GONE);
 
@@ -159,7 +389,7 @@ public class MyExistTextActivity extends AppCompatActivity {
             bottomHrView.setVisibility(View.VISIBLE);
         } else {
             uploadFileButton.setVisibility(View.GONE);
-            savePostButton.setVisibility(View.GONE);
+            submitPostButton.setVisibility(View.GONE);
             updatePostButton.setVisibility(View.VISIBLE);
             deletePostButton.setVisibility(View.VISIBLE);
 
@@ -274,7 +504,7 @@ public class MyExistTextActivity extends AppCompatActivity {
         db.collection("categories")
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
-                    for (com.google.firebase.firestore.QueryDocumentSnapshot document : queryDocumentSnapshots) {
+                    for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
                         String category = document.getString("name");
                         if (category != null && !categoryList.contains(category)) {
                             categoryList.add(category);
@@ -300,11 +530,13 @@ public class MyExistTextActivity extends AppCompatActivity {
                 .addOnSuccessListener(documentSnapshot -> {
                     if (documentSnapshot.exists()) {
                         String title = documentSnapshot.getString("title");
-                        String styledContent = documentSnapshot.getString("content");
+                        String content = documentSnapshot.getString("content");
                         titleEditText.setText(title);
 
-                        if (styledContent != null && !styledContent.isEmpty()) {
-                            CharSequence styledText = parseHtmlContent(styledContent);
+                        CharSequence styledText = null;
+
+                        if (content != null && !content.isEmpty()) {
+                            styledText = parseHtmlContent(content);
                             contentEditText.setText(styledText);
                         } else {
                             contentEditText.setText("NONE");
@@ -324,6 +556,26 @@ public class MyExistTextActivity extends AppCompatActivity {
 
                             updateUploadedFilesUI();
                         }
+
+                        List<Map<String, String>> images = (List<Map<String, String>>) documentSnapshot.get("images");
+                        if (images != null) {
+                            curImageUris.clear();
+                            curImageNames.clear();
+                            curImagePositions.clear();
+
+                            existedImageUris.clear();
+                            existedImageNames.clear();
+                            existedImagePositions.clear();
+
+                            for (Map<String, String> image : images) {
+                                existedImageUris.add(Uri.parse(image.get("imageUrl")));
+                                existedImageNames.add(image.get("imageName"));
+                                existedImagePositions.add(Integer.parseInt(image.get("imagePosition")));
+                            }
+                        }
+
+                        loadInitialState(styledText, existedImageUris, existedImageNames, existedImagePositions);
+
                     } else {
                         Toast.makeText(this, "글 정보를 찾을 수 없습니다.", Toast.LENGTH_SHORT).show();
                     }
@@ -331,6 +583,27 @@ public class MyExistTextActivity extends AppCompatActivity {
                 .addOnFailureListener(e -> {
                     Toast.makeText(this, "글을 불러오는 데 실패했습니다.", Toast.LENGTH_SHORT).show();
                 });
+    }
+
+    private void loadInitialState(CharSequence styledText, List<Uri> initialImageUris, List<String> initialImageNames, List<Integer> initialImagePositions) {
+        curImageUris.addAll(initialImageUris);
+        curImageNames.addAll(initialImageNames);
+        curImagePositions.addAll(initialImagePositions);
+
+        // 이미지를 텍스트에 삽입
+        for (int i = 0; i < curImageUris.size(); i++) {
+            insertImageAtPosition(curImageUris.get(i), curImagePositions.get(i));
+        }
+
+        // UndoRedoManager에 초기 상태 저장
+        undoRedoManager.saveState(new UndoRedoManager.State(
+                styledText,
+                curImageUris,
+                curImageNames,
+                curImagePositions
+        ));
+
+        updateUndoRedoButtons(); // 초기 버튼 상태 업데이트
     }
 
     // 업로드된 파일 목록을 UI에 갱신
@@ -410,7 +683,27 @@ public class MyExistTextActivity extends AppCompatActivity {
 
     // HTML 콘텐츠를 Spannable로 변환
     private CharSequence parseHtmlContent(String htmlContent) {
-        return Html.fromHtml(htmlContent, Html.FROM_HTML_MODE_LEGACY);
+        return Html.fromHtml(htmlContent, Html.FROM_HTML_MODE_LEGACY, source -> {
+            final Drawable[] drawableWrapper = {null};
+
+            Thread thread = new Thread(() -> {
+                try {
+                    Drawable drawable = Drawable.createFromStream(new URL(source).openStream(), null);
+                    drawable.setBounds(0, 0, drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight());
+                    drawableWrapper[0] = drawable;
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+            thread.start();
+            try {
+                thread.join(); // 스레드 작업이 끝날 때까지 대기
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            return drawableWrapper[0];
+        }, null);
     }
 
     // 파일 이름을 클릭하면 파일을 열 수 있도록 Intent 실행
@@ -422,33 +715,146 @@ public class MyExistTextActivity extends AppCompatActivity {
     }
 
     // 게시글 수정 내용을 저장
-    private void updatePost() {
+    private void submitPost() {
         String updatedTitle = titleEditText.getText().toString().trim();
-        String updatedContents = contentEditText.getText().toString().trim();
+        String updatedContent = contentEditText.getText().toString().trim();
         String updatedCategory = categorySpinner.getSelectedItem().toString();
 
-        String updatedContent = convertToHtmlStyledContent(updatedContents);
+        if (updatedCategory.equals("카테고리 선택")) {
+            Toast.makeText(MyExistTextActivity.this, "카테고리를 선택해 주세요.", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
         if (updatedTitle.isEmpty() || updatedContent.isEmpty()) {
             Toast.makeText(this, "제목과 내용을 입력해 주세요.", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        if (!deletedFileUris.isEmpty()) {
-            deleteFilesFromStorage(() -> uploadNewFileAndUpdatePost(updatedCategory, updatedTitle, updatedContent));
+        completedTasks.set(0);
+        imageData.clear();
+        fileData.clear();
+
+        if (!updatedImageUris.isEmpty()) {
+            uploadNewImagesToStorage(updatedCategory, updatedTitle);
         } else {
-            uploadNewFileAndUpdatePost(updatedCategory, updatedTitle, updatedContent);
+            completedTasks.incrementAndGet();
         }
 
+        if (!deletedImageUris.isEmpty()) {
+            deleteImagesFromStorage(updatedCategory, updatedTitle);
+        } else {
+            completedTasks.incrementAndGet();
+        }
+
+        if (!updatedFileUris.isEmpty()) {
+            uploadNewFilesToStorage(updatedCategory, updatedTitle);
+        } else {
+            completedTasks.incrementAndGet();
+        }
+
+        if (!deletedFileUris.isEmpty()) {
+            deleteFilesFromStorage(updatedCategory, updatedTitle);
+        } else {
+            completedTasks.incrementAndGet();
+        }
+
+        checkAndSavePost(updatedCategory, updatedTitle);
+    }
+
+    private void deleteImagesFromStorage(String category, String title) {
+        final List<StorageReference> imageReferences = new ArrayList<>();
+        for (Uri imageUri : deletedImageUris) {
+            imageReferences.add(storage.getReferenceFromUrl(imageUri.toString()));
+        }
+
+        final int totalImages = imageReferences.size();
+        final int[] completedImages = {0};
+
+        for (StorageReference imageRef : imageReferences) {
+            imageRef.delete()
+                    .addOnSuccessListener(aVoid -> {
+                        completedImages[0]++;
+                            if (completedImages[0] == totalImages) {
+                                completedTasks.incrementAndGet();
+                                checkAndSavePost(category, title);
+                            }
+                    })
+                    .addOnFailureListener(e -> {
+                        Toast.makeText(this, "이미지 삭제에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                    });
+        }
+    }
+
+    private void deleteImagesFromStorageForDeletePost() {
+        final List<StorageReference> imageReferences = new ArrayList<>();
+        for (Uri imageUri : deletedImageUris) {
+            imageReferences.add(storage.getReferenceFromUrl(imageUri.toString()));
+        }
+
+        final int totalImages = imageReferences.size();
+        final int[] completedImages = {0};
+
+        for (StorageReference imageRef : imageReferences) {
+            imageRef.delete()
+                    .addOnSuccessListener(aVoid -> {
+                        completedImages[0]++;
+                        if (completedImages[0] == totalImages) {
+                            deletedTasks.incrementAndGet();
+                            checkAndDeletePost();
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        Toast.makeText(this, "이미지 삭제에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                    });
+        }
+    }
+
+    private void uploadNewImagesToStorage(String category, String title) {
+        if (!existedImageUris.isEmpty()) {
+            for (int i = 0; i < existedImageUris.size(); i++) {
+                Map<String, String> imageInfo = new HashMap<>();
+                imageInfo.put("imageUrl", existedImageUris.get(i).toString());
+                imageInfo.put("imageName", existedImageNames.get(i));
+                imageInfo.put("imagePosition", String.valueOf(existedImagePositions.get(i)));
+                imageData.add(imageInfo);
+            }
+        }
+
+        int totalUpdatedImages = updatedImageUris.size();
+        final int[] completedImages = {0};
+
+        for (int i = 0; i < totalUpdatedImages; i++) {
+            Uri updatedImageUri = updatedImageUris.get(i);
+            String updatedImageName = updatedImageNames.get(i);
+            int imagePosition = updatedImagePositions.get(i);
+            String updatedImageExtension = getFileExtension(updatedImageUri);
+
+            String uniqueImageName = UUID.randomUUID().toString() + "_" + updatedImageName;
+            StorageReference fileRef = storage.getReference().child("images/" + uniqueImageName);
+
+            fileRef.putFile(updatedImageUri)
+                    .addOnSuccessListener(taskSnapshot -> fileRef.getDownloadUrl().addOnSuccessListener(uri -> {
+                        Map<String, String> imageInfo = new HashMap<>();
+                        imageInfo.put("imageName", updatedImageName);
+                        imageInfo.put("imageExtension", updatedImageExtension != null ? updatedImageExtension : "unknown");
+                        imageInfo.put("imageUrl", uri.toString());
+                        imageInfo.put("imagePosition", String.valueOf(imagePosition));
+                        imageData.add(imageInfo);
+
+                        completedImages[0]++;
+                        if (completedImages[0] == totalUpdatedImages) {
+                            completedTasks.incrementAndGet();
+                            checkAndSavePost(category, title);
+                        }
+                    }))
+                    .addOnFailureListener(e -> {
+                        Toast.makeText(this, "이미지 업로드 실패: " + updatedImageName, Toast.LENGTH_SHORT).show();
+                    });
+        }
     }
 
     // 스토리지에서 파일 삭제 후 후속 작업 실행
-    private void deleteFilesFromStorage(Runnable onComplete) {
-        if (deletedFileUris.isEmpty()) {
-            onComplete.run();
-            return;
-        }
-
+    private void deleteFilesFromStorage(String category, String title) {
         final List<StorageReference> fileReferences = new ArrayList<>();
         for (Uri fileUri : deletedFileUris) {
             fileReferences.add(storage.getReferenceFromUrl(fileUri.toString()));
@@ -456,28 +862,57 @@ public class MyExistTextActivity extends AppCompatActivity {
 
         final int totalFiles = fileReferences.size();
         final int[] completedFiles = {0};
-        final boolean[] hasErrorOccurred = {false};
 
         for (StorageReference fileRef : fileReferences) {
             fileRef.delete()
                     .addOnSuccessListener(aVoid -> {
                         completedFiles[0]++;
-                        if (completedFiles[0] == totalFiles && !hasErrorOccurred[0]) {
-                            deletedFileUris.clear();
-                            onComplete.run();
+                            if (completedFiles[0] == totalFiles) {
+                                completedTasks.incrementAndGet();
+                                checkAndSavePost(category, title);
+                            }
+                            if (completedFiles[0] == totalFiles) {
+                                deletedTasks.incrementAndGet();
+                                checkAndDeletePost();
+                            }
+                    })
+                    .addOnFailureListener(e -> {
+                        Toast.makeText(this, "파일 삭제에 실패했습니다.", Toast.LENGTH_SHORT).show();
+                    });
+        }
+    }
+
+    // 스토리지에서 파일 삭제 후 후속 작업 실행
+    private void deleteFilesFromStorageForDeletePost() {
+        final List<StorageReference> fileReferences = new ArrayList<>();
+        for (Uri fileUri : deletedFileUris) {
+            fileReferences.add(storage.getReferenceFromUrl(fileUri.toString()));
+        }
+
+        final int totalFiles = fileReferences.size();
+        final int[] completedFiles = {0};
+
+        for (StorageReference fileRef : fileReferences) {
+            fileRef.delete()
+                    .addOnSuccessListener(aVoid -> {
+                        completedFiles[0]++;
+                        if (completedFiles[0] == totalFiles) {
+                            deletedTasks.incrementAndGet();
+                            checkAndDeletePost();
                         }
                     })
                     .addOnFailureListener(e -> {
-                        hasErrorOccurred[0] = true; // 에러 발생
                         Toast.makeText(this, "파일 삭제에 실패했습니다.", Toast.LENGTH_SHORT).show();
                     });
         }
     }
 
     // 수정된 게시글 내용을 데이터베이스에 저장
-    private void saveUpdatedPostToDB(String category, String title, String content, List<Map<String, String>> files) {
+    private void saveUpdatedPostToDB(String category, String title,
+                                     List<Map<String, String>> fileData, List<Map<String, String>> imageData) {
+        String htmlContent = convertToHtmlStyledContent();
         db.collection("posts").document(documentId)
-                .update("category", category, "title", title, "content", content, "files", files)
+                .update("category", category, "title", title, "content", htmlContent, "files", fileData, "images", imageData)
                 .addOnSuccessListener(aVoid -> {
                     Toast.makeText(this, "글이 수정되었습니다.", Toast.LENGTH_SHORT).show();
                     finish();
@@ -488,20 +923,19 @@ public class MyExistTextActivity extends AppCompatActivity {
     }
 
     // 새 파일을 업로드하고 게시글 업데이트
-    private void uploadNewFileAndUpdatePost(String category, String title, String content) {
-        final List<Map<String, String>> updatedFiles = new ArrayList<>();
-        int totalUpdatedFiles = updatedFileUris.size();
-        final int[] completedFiles = {0};
-
-        if(!existedFileUris.isEmpty()) {
+    private void uploadNewFilesToStorage(String category, String title) {
+        if (!existedFileUris.isEmpty()) {
             for (int i = 0; i < existedFileUris.size(); i++) {
                 Map<String, String> fileInfo = new HashMap<>();
                 fileInfo.put("fileName", existedFileNames.get(i));
                 fileInfo.put("fileExtension", existedFileExtensions.get(i));
                 fileInfo.put("fileUrl", existedFileUris.get(i).toString());
-                updatedFiles.add(fileInfo);
+                fileData.add(fileInfo);
             }
         }
+
+        int totalUpdatedFiles = updatedFileUris.size();
+        final int[] completedFiles = {0};
 
         for (int i = 0; i < totalUpdatedFiles; i++) {
             Uri updatedFileUri = updatedFileUris.get(i);
@@ -513,7 +947,7 @@ public class MyExistTextActivity extends AppCompatActivity {
             String updatedFileName = updatedFileNames.get(i);
             String updatedFileExtension = getFileExtension(updatedFileUri);
             String uniqueFileName = UUID.randomUUID().toString() + "_" + updatedFileName;
-            StorageReference fileRef = storage.getReference().child("uploads/" + uniqueFileName);
+            StorageReference fileRef = storage.getReference().child("files/" + uniqueFileName);
 
             fileRef.putFile(updatedFileUri)
                     .addOnSuccessListener(taskSnapshot -> fileRef.getDownloadUrl().addOnSuccessListener(uri -> {
@@ -521,20 +955,23 @@ public class MyExistTextActivity extends AppCompatActivity {
                         fileInfo.put("fileName", updatedFileName);
                         fileInfo.put("fileExtension", updatedFileExtension != null ? updatedFileExtension : "unknown");
                         fileInfo.put("fileUrl", uri.toString());
-                        updatedFiles.add(fileInfo);
+                        fileData.add(fileInfo);
 
                         completedFiles[0]++;
                         if (completedFiles[0] == totalUpdatedFiles) {
-                            saveUpdatedPostToDB(category, title, content, updatedFiles);
+                            completedTasks.incrementAndGet();
+                            checkAndSavePost(category, title);
                         }
                     }))
                     .addOnFailureListener(e -> {
                         Toast.makeText(this, "파일 업로드 실패: " + updatedFileName, Toast.LENGTH_SHORT).show();
                     });
         }
+    }
 
-        if (totalUpdatedFiles == 0) {
-            saveUpdatedPostToDB(category, title, content, updatedFiles);
+    private void checkAndSavePost(String category, String title) {
+        if (completedTasks.get() == totalTasks) {
+            saveUpdatedPostToDB(category, title, fileData, imageData);
         }
     }
 
@@ -568,13 +1005,28 @@ public class MyExistTextActivity extends AppCompatActivity {
                 .setPositiveButton("삭제", (dialog, which) -> {
                     if (!existedFileUris.isEmpty()) {
                         deletedFileUris.addAll(existedFileUris);
-                        deleteFilesFromStorage(this::deletePostFromDB);
+                        deleteFilesFromStorageForDeletePost();
                     } else {
-                        deletePostFromDB();
+                        deletedTasks.incrementAndGet();
                     }
+
+                    if (!existedImageUris.isEmpty()) {
+                        deletedImageUris.addAll(existedImageUris);
+                        deleteImagesFromStorageForDeletePost();
+                    } else {
+                        deletedTasks.incrementAndGet();
+                    }
+
+                    checkAndDeletePost();
                 })
                 .setNegativeButton("취소", (dialog, which) -> {})
                 .show();
+    }
+
+    private void checkAndDeletePost() {
+        if (deletedTasks.get() == totaldeleteTasks) {
+            deletePostFromDB();
+        }
     }
 
     // 데이터베이스에서 게시글 삭제
@@ -594,12 +1046,12 @@ public class MyExistTextActivity extends AppCompatActivity {
     private void setupButtonListeners() {
         boldButton.setOnClickListener(v -> {
             isBold = !isBold;
-            toggleStyle(contentEditText, new StyleSpan(android.graphics.Typeface.BOLD), isBold);
+            toggleStyle(contentEditText, new StyleSpan(Typeface.BOLD), isBold);
         });
 
         italicButton.setOnClickListener(v -> {
             isItalic = !isItalic;
-            toggleStyle(contentEditText, new StyleSpan(android.graphics.Typeface.ITALIC), isItalic);
+            toggleStyle(contentEditText, new StyleSpan(Typeface.ITALIC), isItalic);
         });
 
         underlineButton.setOnClickListener(v -> {
@@ -610,6 +1062,12 @@ public class MyExistTextActivity extends AppCompatActivity {
         strikethroughButton.setOnClickListener(v -> {
             isStrikethrough = !isStrikethrough;
             toggleStyle(contentEditText, new StrikethroughSpan(), isStrikethrough);
+        });
+
+        imageButton.setOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+            intent.setType("image/*");
+            imagePickerLauncher.launch(intent);
         });
     }
 
@@ -662,49 +1120,71 @@ public class MyExistTextActivity extends AppCompatActivity {
         if (isStrikethrough) s.setSpan(new StrikethroughSpan(), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
     }
 
-    // 내용을 HTML 스타일로 변환
-    private String convertToHtmlStyledContent(String content) {
+    // 텍스트를 HTML 스타일로 변환
+    private String convertToHtmlStyledContent() {
         StringBuilder htmlContent = new StringBuilder();
         Editable text = contentEditText.getText();
 
-        boolean isBold = false, isItalic = false, isUnderline = false, isStrikethrough = false;
+        // 이미지 데이터 정렬 (위치 기준)
+        imageData.sort(Comparator.comparingInt(a -> Integer.parseInt(a.get("imagePosition"))));
 
-        for (int i = 0; i < content.length(); i++) {
-            char ch = content.charAt(i);
+        int currentIndex = 0; // 텍스트의 현재 위치
+        int imageIndex = 0; // 이미지 데이터의 현재 인덱스
 
-            boolean bold = false, italic = false, underline = false, strikethrough = false;
+        while (currentIndex < text.length() || imageIndex < imageData.size()) {
+            int imagePosition = imageIndex < imageData.size()
+                    ? Integer.parseInt(imageData.get(imageIndex).get("imagePosition"))
+                    : Integer.MAX_VALUE;
 
-            for (StyleSpan span : text.getSpans(i, i + 1, StyleSpan.class)) {
-                if (span.getStyle() == Typeface.BOLD) bold = true;
-                if (span.getStyle() == Typeface.ITALIC) italic = true;
+            if (currentIndex < imagePosition) {
+                // 텍스트 처리
+                char ch = text.charAt(currentIndex++);
+                if (ch == '\n') {
+                    htmlContent.append("<br>"); // 개행 문자를 <br>로 변환
+                } else {
+                    htmlContent.append(processStyledCharacter(text, currentIndex - 1, ch));
+                }
+            } else {
+                Map<String, String> imageInfo = imageData.get(imageIndex++);
+                String imageUrl = imageInfo.get("imageUrl");
+                if (imageUrl != null && !imageUrl.isEmpty()) {
+                    htmlContent.append("<img src=\"").append(imageUrl).append("\" />");
+                }
             }
-            if (text.getSpans(i, i + 1, UnderlineSpan.class).length > 0) underline = true;
-            if (text.getSpans(i, i + 1, StrikethroughSpan.class).length > 0) strikethrough = true;
-
-            if (isBold && !bold) htmlContent.append("</b>");
-            if (isItalic && !italic) htmlContent.append("</i>");
-            if (isUnderline && !underline) htmlContent.append("</u>");
-            if (isStrikethrough && !strikethrough) htmlContent.append("</s>");
-
-            if (!isBold && bold) htmlContent.append("<b>");
-            if (!isItalic && italic) htmlContent.append("<i>");
-            if (!isUnderline && underline) htmlContent.append("<u>");
-            if (!isStrikethrough && strikethrough) htmlContent.append("<s>");
-
-            htmlContent.append(ch);
-
-            isBold = bold;
-            isItalic = italic;
-            isUnderline = underline;
-            isStrikethrough = strikethrough;
         }
 
-        if (isStrikethrough) htmlContent.append("</s>");
-        if (isUnderline) htmlContent.append("</u>");
-        if (isItalic) htmlContent.append("</i>");
-        if (isBold) htmlContent.append("</b>");
-
         return htmlContent.toString();
+    }
+
+    private String processStyledCharacter(Editable text, int position, char ch) {
+        StringBuilder result = new StringBuilder();
+
+        // 스타일 확인
+        boolean isBold = false, isItalic = false, isUnderline = false, isStrikethrough = false;
+
+        for (StyleSpan span : text.getSpans(position, position + 1, StyleSpan.class)) {
+            if (span.getStyle() == Typeface.BOLD) isBold = true;
+            if (span.getStyle() == Typeface.ITALIC) isItalic = true;
+        }
+        if (text.getSpans(position, position + 1, UnderlineSpan.class).length > 0) isUnderline = true;
+        if (text.getSpans(position, position + 1, StrikethroughSpan.class).length > 0) isStrikethrough = true;
+
+        // HTML 스타일 태그 추가
+        if (isBold) result.append("<b>");
+        if (isItalic) result.append("<i>");
+        if (isUnderline) result.append("<u>");
+        if (isStrikethrough) result.append("<s>");
+
+        // 텍스트 추가
+        result.append(ch);
+
+        // 닫는 태그 추가
+        if (isStrikethrough) result.append("</s>");
+        if (isUnderline) result.append("</u>");
+        if (isItalic) result.append("</i>");
+        if (isBold) result.append("</b>");
+
+        return result.toString();
     }
 
 }
