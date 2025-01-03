@@ -82,7 +82,4 @@ dependencies {
     implementation ("androidx.recyclerview:recyclerview:1.2.1")
     implementation ("com.google.android.flexbox:flexbox:3.0.0")
     implementation ("androidx.viewpager2:viewpager2:1.0.0")
-
-
-
 }
