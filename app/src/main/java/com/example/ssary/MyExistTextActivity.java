@@ -111,6 +111,7 @@ public class MyExistTextActivity extends AppCompatActivity {
     private boolean isInitialAccess = true;
     private boolean isBold = false, isItalic = false, isUnderline = false, isStrikethrough = false;
     private ImageSpan deletedImageSpan;
+    private boolean isImageInsertionInProgress = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -168,8 +169,6 @@ public class MyExistTextActivity extends AppCompatActivity {
         setupButtonListeners();
         setupTextWatcher();
 
-
-
         // 텍스트 변경 이벤트 처리
         contentEditText.addTextChangedListener(new TextWatcher() {
             @Override
@@ -186,12 +185,12 @@ public class MyExistTextActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-//                applyCurrentStyleToInput();
-            }
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
 
             @Override
             public void afterTextChanged(Editable s) {
+                updateImagePositions(s);
+
                 if (deletedImageSpan != null) {
                     Uri imageUri = Uri.parse(deletedImageSpan.getSource());
                     showDeleteImageDialog(imageUri);
@@ -241,6 +240,64 @@ public class MyExistTextActivity extends AppCompatActivity {
 
         // 버튼 초기 상태 설정
         updateUndoRedoButtons();
+    }
+
+    private void updateImagePositions(Editable text) {
+        if (isImageInsertionInProgress) return;  // 이미지 삽입 중이면 업데이트 중단
+
+        // 모든 ImageSpan 탐색
+        ImageSpan[] spans = text.getSpans(0, text.length(), ImageSpan.class);
+
+        // 새로 탐색한 이미지 정보 임시 저장
+        List<Integer> newExistedImagePositions = new ArrayList<>();
+        List<Uri> newExistedImageUris = new ArrayList<>();
+        List<String> newExistedImageNames = new ArrayList<>();
+
+        List<Integer> newUpdatedImagePositions = new ArrayList<>();
+        List<Uri> newUpdatedImageUris = new ArrayList<>();
+        List<String> newUpdatedImageNames = new ArrayList<>();
+
+        for (ImageSpan span : spans) {
+            String source = span.getSource();
+            if (source == null) continue;  // source가 null이면 건너뜀
+
+            int start = text.getSpanStart(span);
+            Uri imageUri = Uri.parse(source);
+
+            if (existedImageUris.contains(imageUri)) {
+                // 기존 이미지인 경우
+                int index = existedImageUris.indexOf(imageUri);
+                if (index != -1) {
+                    newExistedImagePositions.add(start);
+                    newExistedImageUris.add(existedImageUris.get(index));
+                    newExistedImageNames.add(existedImageNames.get(index));
+                }
+            } else if (updatedImageUris.contains(imageUri)) {
+                // 새로 추가된 이미지인 경우
+                int index = updatedImageUris.indexOf(imageUri);
+                if (index != -1) {
+                    newUpdatedImagePositions.add(start);
+                    newUpdatedImageUris.add(updatedImageUris.get(index));
+                    newUpdatedImageNames.add(updatedImageNames.get(index));
+                }
+            }
+        }
+
+        // 기존 이미지 정보 업데이트
+        existedImagePositions.clear();
+        existedImageUris.clear();
+        existedImageNames.clear();
+        existedImagePositions.addAll(newExistedImagePositions);
+        existedImageUris.addAll(newExistedImageUris);
+        existedImageNames.addAll(newExistedImageNames);
+
+        // 업데이트된 이미지 정보 업데이트
+        updatedImagePositions.clear();
+        updatedImageUris.clear();
+        updatedImageNames.clear();
+        updatedImagePositions.addAll(newUpdatedImagePositions);
+        updatedImageUris.addAll(newUpdatedImageUris);
+        updatedImageNames.addAll(newUpdatedImageNames);
     }
 
     // 이미지 삭제 대화상자 표시 메서드
@@ -306,6 +363,9 @@ public class MyExistTextActivity extends AppCompatActivity {
     // 선택한 이미지를 contentEditText의 현재 커서 위치에 삽입
     private void insertImageAtCursor(Uri imageUri) {
         try {
+            isImageInsertionInProgress = true;  // 이미지 삽입 시작 플래그 설정
+
+            // 이미지 Drawable 생성
             Drawable drawable = Drawable.createFromStream(
                     getContentResolver().openInputStream(imageUri),
                     null
@@ -349,6 +409,8 @@ public class MyExistTextActivity extends AppCompatActivity {
             updateUndoRedoButtons();
         } catch (Exception e) {
             Toast.makeText(this, "이미지를 삽입할 수 없습니다.", Toast.LENGTH_SHORT).show();
+        } finally {
+            isImageInsertionInProgress = false;  // 이미지 삽입 종료 플래그 설정
         }
     }
 
@@ -854,6 +916,8 @@ public class MyExistTextActivity extends AppCompatActivity {
     }
 
     private void uploadNewImagesToStorage(String category, String title) {
+        updateImagePositions(contentEditText.getText());
+
         if (!existedImageUris.isEmpty()) {
             for (int i = 0; i < existedImageUris.size(); i++) {
                 Map<String, String> imageInfo = new HashMap<>();
