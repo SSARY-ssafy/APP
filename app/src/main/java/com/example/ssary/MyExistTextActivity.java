@@ -284,11 +284,6 @@ public class MyExistTextActivity extends AppCompatActivity {
         }
     }
 
-
-
-
-
-
     // Undo/Redo 버튼 활성화 상태 업데이트
     private void updateUndoRedoButtons() {
         undoButton.setEnabled(undoRedoManager.canUndo());
@@ -321,16 +316,24 @@ public class MyExistTextActivity extends AppCompatActivity {
             // 커서 위치에 이미지 추가
             int position = contentEditText.getSelectionEnd();
             Editable text = contentEditText.getText();
-            ImageSpan imageSpan = new ImageSpan(drawable, ImageSpan.ALIGN_BASELINE);
-            text.insert(position, " "); // 이미지 자리 확보
+
+            // 객체 치환 문자 삽입
+            text.insert(position, "\uFFFC");
+            ImageSpan imageSpan = new ImageSpan(drawable, imageUri.toString(), ImageSpan.ALIGN_BASELINE);
             text.setSpan(imageSpan, position, position + 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
 
-            // 업데이트 이미지
+            // 변경된 텍스트를 EditText에 반영
+            contentEditText.setText(text);
+
+            // 커서를 이미지 뒤로 이동
+            contentEditText.setSelection(position + 1);
+
+            // 업데이트 이미지 정보 저장
             updatedImageUris.add(imageUri);
             updatedImageNames.add(getFileName(imageUri));
             updatedImagePositions.add(position);
 
-            // 기존 + 업데이트 이미지
+            // 기존 + 업데이트 이미지 정보 저장
             curImageUris.add(imageUri);
             curImageNames.add(getFileName(imageUri));
             curImagePositions.add(position);
@@ -783,11 +786,7 @@ public class MyExistTextActivity extends AppCompatActivity {
         imageData.clear();
         fileData.clear();
 
-        if (!updatedImageUris.isEmpty()) {
-            uploadNewImagesToStorage(updatedCategory, updatedTitle);
-        } else {
-            completedTasks.incrementAndGet();
-        }
+        uploadNewImagesToStorage(updatedCategory, updatedTitle);
 
         if (!deletedImageUris.isEmpty()) {
             deleteImagesFromStorage(updatedCategory, updatedTitle);
@@ -795,11 +794,7 @@ public class MyExistTextActivity extends AppCompatActivity {
             completedTasks.incrementAndGet();
         }
 
-        if (!updatedFileUris.isEmpty()) {
-            uploadNewFilesToStorage(updatedCategory, updatedTitle);
-        } else {
-            completedTasks.incrementAndGet();
-        }
+        uploadNewFilesToStorage(updatedCategory, updatedTitle);
 
         if (!deletedFileUris.isEmpty()) {
             deleteFilesFromStorage(updatedCategory, updatedTitle);
@@ -870,35 +865,39 @@ public class MyExistTextActivity extends AppCompatActivity {
         }
 
         int totalUpdatedImages = updatedImageUris.size();
-        final int[] completedImages = {0};
 
-        for (int i = 0; i < totalUpdatedImages; i++) {
-            Uri updatedImageUri = updatedImageUris.get(i);
-            String updatedImageName = updatedImageNames.get(i);
-            int imagePosition = updatedImagePositions.get(i);
-            String updatedImageExtension = getFileExtension(updatedImageUri);
+        if (totalUpdatedImages != 0) {
+            final int[] completedImages = {0};
+            for (int i = 0; i < totalUpdatedImages; i++) {
+                Uri updatedImageUri = updatedImageUris.get(i);
+                String updatedImageName = updatedImageNames.get(i);
+                int imagePosition = updatedImagePositions.get(i);
+                String updatedImageExtension = getFileExtension(updatedImageUri);
 
-            String uniqueImageName = UUID.randomUUID().toString() + "_" + updatedImageName;
-            StorageReference fileRef = storage.getReference().child("images/" + uniqueImageName);
+                String uniqueImageName = UUID.randomUUID().toString() + "_" + updatedImageName;
+                StorageReference fileRef = storage.getReference().child("images/" + uniqueImageName);
 
-            fileRef.putFile(updatedImageUri)
-                    .addOnSuccessListener(taskSnapshot -> fileRef.getDownloadUrl().addOnSuccessListener(uri -> {
-                        Map<String, String> imageInfo = new HashMap<>();
-                        imageInfo.put("imageName", updatedImageName);
-                        imageInfo.put("imageExtension", updatedImageExtension != null ? updatedImageExtension : "unknown");
-                        imageInfo.put("imageUrl", uri.toString());
-                        imageInfo.put("imagePosition", String.valueOf(imagePosition));
-                        imageData.add(imageInfo);
+                fileRef.putFile(updatedImageUri)
+                        .addOnSuccessListener(taskSnapshot -> fileRef.getDownloadUrl().addOnSuccessListener(uri -> {
+                            Map<String, String> imageInfo = new HashMap<>();
+                            imageInfo.put("imageName", updatedImageName);
+                            imageInfo.put("imageExtension", updatedImageExtension != null ? updatedImageExtension : "unknown");
+                            imageInfo.put("imageUrl", uri.toString());
+                            imageInfo.put("imagePosition", String.valueOf(imagePosition));
+                            imageData.add(imageInfo);
 
-                        completedImages[0]++;
-                        if (completedImages[0] == totalUpdatedImages) {
-                            completedTasks.incrementAndGet();
-                            checkAndSavePost(category, title);
-                        }
-                    }))
-                    .addOnFailureListener(e -> {
-                        Toast.makeText(this, "이미지 업로드 실패: " + updatedImageName, Toast.LENGTH_SHORT).show();
-                    });
+                            completedImages[0]++;
+                            if (completedImages[0] == totalUpdatedImages) {
+                                completedTasks.incrementAndGet();
+                                checkAndSavePost(category, title);
+                            }
+                        }))
+                        .addOnFailureListener(e -> {
+                            Toast.makeText(this, "이미지 업로드 실패: " + updatedImageName, Toast.LENGTH_SHORT).show();
+                        });
+            }
+        } else {
+            completedTasks.incrementAndGet();
         }
     }
 
@@ -984,37 +983,41 @@ public class MyExistTextActivity extends AppCompatActivity {
         }
 
         int totalUpdatedFiles = updatedFileUris.size();
-        final int[] completedFiles = {0};
 
-        for (int i = 0; i < totalUpdatedFiles; i++) {
-            Uri updatedFileUri = updatedFileUris.get(i);
-            if (!isLocalUri(updatedFileUri)) {
-                Toast.makeText(this, "유효하지 않은 파일 URI: " + updatedFileUri, Toast.LENGTH_SHORT).show();
-                continue;
+        if (totalUpdatedFiles != 0) {
+            final int[] completedFiles = {0};
+            for (int i = 0; i < totalUpdatedFiles; i++) {
+                Uri updatedFileUri = updatedFileUris.get(i);
+                if (!isLocalUri(updatedFileUri)) {
+                    Toast.makeText(this, "유효하지 않은 파일 URI: " + updatedFileUri, Toast.LENGTH_SHORT).show();
+                    continue;
+                }
+
+                String updatedFileName = updatedFileNames.get(i);
+                String updatedFileExtension = getFileExtension(updatedFileUri);
+                String uniqueFileName = UUID.randomUUID().toString() + "_" + updatedFileName;
+                StorageReference fileRef = storage.getReference().child("files/" + uniqueFileName);
+
+                fileRef.putFile(updatedFileUri)
+                        .addOnSuccessListener(taskSnapshot -> fileRef.getDownloadUrl().addOnSuccessListener(uri -> {
+                            Map<String, String> fileInfo = new HashMap<>();
+                            fileInfo.put("fileName", updatedFileName);
+                            fileInfo.put("fileExtension", updatedFileExtension != null ? updatedFileExtension : "unknown");
+                            fileInfo.put("fileUrl", uri.toString());
+                            fileData.add(fileInfo);
+
+                            completedFiles[0]++;
+                            if (completedFiles[0] == totalUpdatedFiles) {
+                                completedTasks.incrementAndGet();
+                                checkAndSavePost(category, title);
+                            }
+                        }))
+                        .addOnFailureListener(e -> {
+                            Toast.makeText(this, "파일 업로드 실패: " + updatedFileName, Toast.LENGTH_SHORT).show();
+                        });
             }
-
-            String updatedFileName = updatedFileNames.get(i);
-            String updatedFileExtension = getFileExtension(updatedFileUri);
-            String uniqueFileName = UUID.randomUUID().toString() + "_" + updatedFileName;
-            StorageReference fileRef = storage.getReference().child("files/" + uniqueFileName);
-
-            fileRef.putFile(updatedFileUri)
-                    .addOnSuccessListener(taskSnapshot -> fileRef.getDownloadUrl().addOnSuccessListener(uri -> {
-                        Map<String, String> fileInfo = new HashMap<>();
-                        fileInfo.put("fileName", updatedFileName);
-                        fileInfo.put("fileExtension", updatedFileExtension != null ? updatedFileExtension : "unknown");
-                        fileInfo.put("fileUrl", uri.toString());
-                        fileData.add(fileInfo);
-
-                        completedFiles[0]++;
-                        if (completedFiles[0] == totalUpdatedFiles) {
-                            completedTasks.incrementAndGet();
-                            checkAndSavePost(category, title);
-                        }
-                    }))
-                    .addOnFailureListener(e -> {
-                        Toast.makeText(this, "파일 업로드 실패: " + updatedFileName, Toast.LENGTH_SHORT).show();
-                    });
+        } else {
+            completedTasks.incrementAndGet();
         }
     }
 
@@ -1174,31 +1177,37 @@ public class MyExistTextActivity extends AppCompatActivity {
         StringBuilder htmlContent = new StringBuilder();
         Editable text = contentEditText.getText();
 
-        int currentIndex = 0;
+        // 이미지 데이터 정렬 (위치 기준)
+        imageData.sort(Comparator.comparingInt(a -> Integer.parseInt(a.get("imagePosition"))));
 
-        while (currentIndex < text.length()) {
-            ImageSpan[] imageSpans = text.getSpans(currentIndex, currentIndex + 1, ImageSpan.class);
+        int currentIndex = 0; // 텍스트의 현재 위치
+        int imageIndex = 0;   // 이미지 데이터의 현재 인덱스
 
-            if (imageSpans.length > 0) {
-                // 이미지 스팬이 있는 경우
-                ImageSpan imageSpan = imageSpans[0];
-                String imageUrl = imageSpan.getSource();
+        while (currentIndex < text.length() || imageIndex < imageData.size()) {
+            if (imageIndex < imageData.size()) {
+                // 텍스트에서 객체 치환 문자("\uFFFC")를 찾음
+                if (currentIndex < text.length() && text.charAt(currentIndex) == '\uFFFC') {
+                    // 이미지 URL 삽입
+                    String imageUrl = imageData.get(imageIndex).get("imageUrl");
+                    if (imageUrl != null && !imageUrl.isEmpty()) {
+                        htmlContent.append("<img src=\"").append(imageUrl).append("\" />");
+                    }
 
-                if (imageUrl != null && !imageUrl.isEmpty()) {
-                    htmlContent.append("<img src=\"").append(imageUrl).append("\" />");
+                    // 다음 이미지로 이동
+                    imageIndex++;
+                    currentIndex++;
+                    continue;
                 }
+            }
 
-                // 이미지 스팬의 끝 위치로 이동
-                currentIndex = text.getSpanEnd(imageSpan);
-            } else {
-                // 일반 텍스트 처리
-                char ch = text.charAt(currentIndex);
+            // 일반 텍스트 처리
+            if (currentIndex < text.length()) {
+                char ch = text.charAt(currentIndex++);
                 if (ch == '\n') {
                     htmlContent.append("<br>");
                 } else {
-                    htmlContent.append(processStyledCharacter(text, currentIndex, ch));
+                    htmlContent.append(processStyledCharacter(text, currentIndex - 1, ch));
                 }
-                currentIndex++;
             }
         }
 
