@@ -1,6 +1,7 @@
 package com.example.ssary.ui.theme;
 
 import android.net.Uri;
+import android.text.Spannable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -9,12 +10,12 @@ import java.util.Stack;
 
 public class UndoRedoManager {
     public static class State {
-        public CharSequence text;
+        public Spannable text;
         public List<Uri> imageUris;
         public List<String> imageNames;
         public List<Integer> imagePositions;
 
-        public State(CharSequence text, List<Uri> imageUris, List<String> imageNames, List<Integer> imagePositions) {
+        public State(Spannable text, List<Uri> imageUris, List<String> imageNames, List<Integer> imagePositions) {
             this.text = text;
             this.imageUris = new ArrayList<>(imageUris);
             this.imageNames = new ArrayList<>(imageNames);
@@ -51,7 +52,7 @@ public class UndoRedoManager {
     }
 
     public boolean canUndo() {
-        return !undoStack.isEmpty();
+        return undoStack.size() > 1;
     }
 
     public boolean canRedo() {
