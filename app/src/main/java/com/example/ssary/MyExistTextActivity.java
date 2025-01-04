@@ -365,11 +365,6 @@ public class MyExistTextActivity extends AppCompatActivity {
         // 이미지 상태 복원
         manageDeletedAndExistedImages(state);
 
-        // UI에서 이미지 재삽입
-        for (int i = 0; i < curImageUris.size(); i++) {
-            insertImageAtPosition(curImageUris.get(i), curImagePositions.get(i));
-        }
-
         // 커서 위치 조정
         contentEditText.setSelection(state.text.length());
     }
@@ -403,24 +398,6 @@ public class MyExistTextActivity extends AppCompatActivity {
                     existedImagePositions.add(state.imagePositions.get(state.imageUris.indexOf(imageUri)));
                 }
             }
-        }
-    }
-
-    private void insertImageAtPosition(Uri imageUri, int position) {
-        try {
-            Drawable drawable = Drawable.createFromStream(
-                    getContentResolver().openInputStream(imageUri),
-                    null
-            );
-            assert drawable != null;
-            drawable.setBounds(0, 0, drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight());
-
-            Editable text = contentEditText.getText();
-            ImageSpan imageSpan = new ImageSpan(drawable, ImageSpan.ALIGN_BASELINE);
-            text.insert(position, " "); // 이미지 자리 확보
-            text.setSpan(imageSpan, position, position + 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-        } catch (Exception e) {
-            Toast.makeText(this, "이미지를 복원할 수 없습니다.", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -624,10 +601,6 @@ public class MyExistTextActivity extends AppCompatActivity {
 
                         List<Map<String, String>> images = (List<Map<String, String>>) documentSnapshot.get("images");
                         if (images != null) {
-                            curImageUris.clear();
-                            curImageNames.clear();
-                            curImagePositions.clear();
-
                             existedImageUris.clear();
                             existedImageNames.clear();
                             existedImagePositions.clear();
@@ -651,6 +624,10 @@ public class MyExistTextActivity extends AppCompatActivity {
     }
 
     private void loadInitialState(CharSequence styledText, List<Uri> initialImageUris, List<String> initialImageNames, List<Integer> initialImagePositions) {
+        curImageUris.clear();
+        curImageNames.clear();
+        curImagePositions.clear();
+
         curImageUris.addAll(initialImageUris);
         curImageNames.addAll(initialImageNames);
         curImagePositions.addAll(initialImagePositions);
