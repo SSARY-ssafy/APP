@@ -133,7 +133,7 @@ public class MyNewTextActivity extends AppCompatActivity {
                 if (!isUndoRedoAction) {
                     // UndoRedoManager에 현재 상태 저장
                     undoRedoManager.saveState(new UndoRedoManager.State(
-                            s.toString(), // 텍스트 내용
+                            new SpannableString(s),
                             new ArrayList<>(imageUris),
                             new ArrayList<>(imageNames),
                             new ArrayList<>(imagePositions)
@@ -223,7 +223,7 @@ public class MyNewTextActivity extends AppCompatActivity {
 
         // UndoRedoManager에 초기 상태 저장
         undoRedoManager.saveState(new UndoRedoManager.State(
-                "",
+                new SpannableString(""),
                 imageUris,
                 imageNames,
                 imagePositions
@@ -275,7 +275,7 @@ public class MyNewTextActivity extends AppCompatActivity {
 
             // 상태 저장
             undoRedoManager.saveState(new UndoRedoManager.State(
-                    contentEditText.getText().toString(),
+                    new SpannableString(contentEditText.getText()),
                     imageUris,
                     imageNames,
                     imagePositions

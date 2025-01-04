@@ -337,7 +337,7 @@ public class MyExistTextActivity extends AppCompatActivity {
 
             // 상태 저장
             undoRedoManager.saveState(new UndoRedoManager.State(
-                    contentEditText.getText().toString(),
+                    new SpannableString(contentEditText.getText()),
                     curImageUris,
                     curImageNames,
                     curImagePositions
@@ -655,20 +655,27 @@ public class MyExistTextActivity extends AppCompatActivity {
         curImageNames.addAll(initialImageNames);
         curImagePositions.addAll(initialImagePositions);
 
-        // 이미지를 텍스트에 삽입
-        for (int i = 0; i < curImageUris.size(); i++) {
-            insertImageAtPosition(curImageUris.get(i), curImagePositions.get(i));
+        // UndoRedoManager에 초기 상태 저장
+        if (styledText instanceof Spannable) {
+            undoRedoManager.saveState(new UndoRedoManager.State(
+                    (Spannable) styledText,
+                    curImageUris,
+                    curImageNames,
+                    curImagePositions
+            ));
+        } else {
+            Spannable spannableText = new SpannableString(styledText);
+            undoRedoManager.saveState(new UndoRedoManager.State(
+                    spannableText,
+                    curImageUris,
+                    curImageNames,
+                    curImagePositions
+            ));
         }
 
-        // UndoRedoManager에 초기 상태 저장
-        undoRedoManager.saveState(new UndoRedoManager.State(
-                styledText,
-                curImageUris,
-                curImageNames,
-                curImagePositions
-        ));
+        isInitialAccess = false;
 
-        updateUndoRedoButtons(); // 초기 버튼 상태 업데이트
+        updateUndoRedoButtons();
     }
 
     // 업로드된 파일 목록을 UI에 갱신
