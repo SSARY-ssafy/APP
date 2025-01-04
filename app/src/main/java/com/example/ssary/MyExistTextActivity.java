@@ -1197,31 +1197,31 @@ public class MyExistTextActivity extends AppCompatActivity {
         StringBuilder htmlContent = new StringBuilder();
         Editable text = contentEditText.getText();
 
-        // 이미지 데이터 정렬 (위치 기준)
-        imageData.sort(Comparator.comparingInt(a -> Integer.parseInt(a.get("imagePosition"))));
+        int currentIndex = 0;
 
-        int currentIndex = 0; // 텍스트의 현재 위치
-        int imageIndex = 0; // 이미지 데이터의 현재 인덱스
+        while (currentIndex < text.length()) {
+            ImageSpan[] imageSpans = text.getSpans(currentIndex, currentIndex + 1, ImageSpan.class);
 
-        while (currentIndex < text.length() || imageIndex < imageData.size()) {
-            int imagePosition = imageIndex < imageData.size()
-                    ? Integer.parseInt(imageData.get(imageIndex).get("imagePosition"))
-                    : Integer.MAX_VALUE;
+            if (imageSpans.length > 0) {
+                // 이미지 스팬이 있는 경우
+                ImageSpan imageSpan = imageSpans[0];
+                String imageUrl = imageSpan.getSource();
 
-            if (currentIndex < imagePosition) {
-                // 텍스트 처리
-                char ch = text.charAt(currentIndex++);
-                if (ch == '\n') {
-                    htmlContent.append("<br>"); // 개행 문자를 <br>로 변환
-                } else {
-                    htmlContent.append(processStyledCharacter(text, currentIndex - 1, ch));
-                }
-            } else {
-                Map<String, String> imageInfo = imageData.get(imageIndex++);
-                String imageUrl = imageInfo.get("imageUrl");
                 if (imageUrl != null && !imageUrl.isEmpty()) {
                     htmlContent.append("<img src=\"").append(imageUrl).append("\" />");
                 }
+
+                // 이미지 스팬의 끝 위치로 이동
+                currentIndex = text.getSpanEnd(imageSpan);
+            } else {
+                // 일반 텍스트 처리
+                char ch = text.charAt(currentIndex);
+                if (ch == '\n') {
+                    htmlContent.append("<br>");
+                } else {
+                    htmlContent.append(processStyledCharacter(text, currentIndex, ch));
+                }
+                currentIndex++;
             }
         }
 
