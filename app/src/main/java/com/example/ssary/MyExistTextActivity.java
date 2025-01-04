@@ -18,6 +18,7 @@ import android.provider.OpenableColumns;
 import android.text.Editable;
 import android.text.Html;
 import android.text.Spannable;
+import android.text.SpannableString;
 import android.text.TextWatcher;
 import android.text.style.ImageSpan;
 import android.text.style.StrikethroughSpan;
@@ -107,6 +108,7 @@ public class MyExistTextActivity extends AppCompatActivity {
 
     private String documentId;
     private boolean isUndoRedoAction = false;
+    private boolean isInitialAccess = true;
     private boolean isBold = false, isItalic = false, isUnderline = false, isStrikethrough = false;
     private ImageSpan deletedImageSpan;
 
@@ -167,10 +169,21 @@ public class MyExistTextActivity extends AppCompatActivity {
         setupTextWatcher();
 
 
+
         // 텍스트 변경 이벤트 처리
         contentEditText.addTextChangedListener(new TextWatcher() {
             @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                // 백스페이스 전 상태에서 이미지 스팬 감지
+                if (count > after) {
+                    ImageSpan[] spans = ((Editable) s).getSpans(start, start + count, ImageSpan.class);
+                    if (spans.length > 0) {
+                        deletedImageSpan = spans[0]; // 삭제된 이미지 스팬 저장
+                    } else {
+                        deletedImageSpan = null;
+                    }
+                }
+            }
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
@@ -179,15 +192,21 @@ public class MyExistTextActivity extends AppCompatActivity {
 
             @Override
             public void afterTextChanged(Editable s) {
-                if (!isUndoRedoAction) {
+                if (deletedImageSpan != null) {
+                    Uri imageUri = Uri.parse(deletedImageSpan.getSource());
+                    showDeleteImageDialog(imageUri);
+                    deletedImageSpan = null; // 초기화
+                }
+
+                if (!isUndoRedoAction && !isInitialAccess) {
                     // UndoRedoManager에 현재 상태 저장
                     undoRedoManager.saveState(new UndoRedoManager.State(
-                            s.toString(), // 텍스트 내용
-                            new ArrayList<>(curImageUris), // 이미지 URI 리스트 복사
-                            new ArrayList<>(curImageNames), // 이미지 이름 리스트 복사
-                            new ArrayList<>(curImagePositions) // 이미지 위치 리스트 복사
+                            new SpannableString(s),
+                            new ArrayList<>(curImageUris),
+                            new ArrayList<>(curImageNames),
+                            new ArrayList<>(curImagePositions)
                     ));
-                    updateUndoRedoButtons(); // 버튼 활성화 상태 업데이트
+                    updateUndoRedoButtons();
                 }
             }
         });
@@ -223,6 +242,52 @@ public class MyExistTextActivity extends AppCompatActivity {
         // 버튼 초기 상태 설정
         updateUndoRedoButtons();
     }
+
+    // 이미지 삭제 대화상자 표시 메서드
+    private void showDeleteImageDialog(Uri imageUri) {
+        new AlertDialog.Builder(this)
+                .setTitle("이미지 삭제")
+                .setMessage("해당 이미지를 삭제하시겠습니까?")
+                .setPositiveButton("삭제", (dialog, which) -> deleteImage(imageUri))
+                .setNegativeButton("취소", (dialog, which) -> {
+                    // 취소 시 즉시 undo 실행
+                    if (undoRedoManager.canUndo()) {
+                        isUndoRedoAction = true;
+                        UndoRedoManager.State previousState = undoRedoManager.undo();
+
+                        // 상태 복원
+                        restoreState(previousState);
+
+                        isUndoRedoAction = false;
+                    }
+                    updateUndoRedoButtons();
+                })
+                .show();
+    }
+
+    private void deleteImage(Uri imageUri) {
+        int index = curImageUris.indexOf(imageUri);
+        if (index != -1) {
+            curImageUris.remove(index);
+            curImageNames.remove(index);
+            curImagePositions.remove(index);
+
+            // 삭제된 이미지가 existedImageUris에 있다면 삭제 관리
+            if (existedImageUris.contains(imageUri)) {
+                int existedIndex = existedImageUris.indexOf(imageUri);
+                existedImageUris.remove(existedIndex);
+                existedImageNames.remove(existedIndex);
+                existedImagePositions.remove(existedIndex);
+
+                deletedImageUris.add(imageUri);
+            }
+        }
+    }
+
+
+
+
+
 
     // Undo/Redo 버튼 활성화 상태 업데이트
     private void updateUndoRedoButtons() {
