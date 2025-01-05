@@ -113,7 +113,6 @@ public class MyNewTextActivity extends AppCompatActivity {
             categorySpinner.setSelection(categoryList.indexOf(selectedCategory));
         }
 
-
         submitPostButton.setOnClickListener(v -> submitPost());
         uploadFileButton.setOnClickListener(v -> selectFiles());
 
@@ -123,7 +122,17 @@ public class MyNewTextActivity extends AppCompatActivity {
         // 텍스트 변경 이벤트 처리
         contentEditText.addTextChangedListener(new TextWatcher() {
             @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                // 백스페이스 전 상태에서 이미지 스팬 감지
+                if (count > after) {
+                    ImageSpan[] spans = ((Editable) s).getSpans(start, start + count, ImageSpan.class);
+                    if (spans.length > 0) {
+                        deletedImageSpan = spans[0]; // 삭제된 이미지 스팬 저장
+                    } else {
+                        deletedImageSpan = null;
+                    }
+                }
+            }
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
@@ -140,15 +149,23 @@ public class MyNewTextActivity extends AppCompatActivity {
                     showDeleteImageDialog(imageUri);
                     deletedImageSpan = null;
                 }
+
                 if (!isUndoRedoAction) {
-                    // UndoRedoManager에 현재 상태 저장
-                    undoRedoManager.saveState(new UndoRedoManager.State(
-                            new SpannableString(s),
-                            new ArrayList<>(imageUris),
-                            new ArrayList<>(imageNames),
-                            new ArrayList<>(imagePositions)
-                    ));
-                    updateUndoRedoButtons(); // 버튼 활성화 상태 업데이트
+                    // 이전 상태의 텍스트와 현재 텍스트 비교
+                    CharSequence currentStateText = undoRedoManager.getCurrentStateText();
+                    SpannableString newText = new SpannableString(s);
+
+                    if ((currentStateText == null || !currentStateText.toString().equals(newText.toString()))) {
+                        // UndoRedoManager에 현재 상태 저장
+                        undoRedoManager.saveState(new UndoRedoManager.State(
+                                newText,
+                                new ArrayList<>(imageUris),
+                                new ArrayList<>(imageNames),
+                                new ArrayList<>(imagePositions),
+                                contentEditText.getSelectionStart()
+                        ));
+                        updateUndoRedoButtons();
+                    }
                 }
             }
         });
@@ -343,7 +360,7 @@ public class MyNewTextActivity extends AppCompatActivity {
             // 커서 위치에 이미지 추가
             int position = contentEditText.getSelectionEnd();
             Editable text = contentEditText.getText();
-            ImageSpan imageSpan = new ImageSpan(drawable, ImageSpan.ALIGN_BASELINE);
+            ImageSpan imageSpan = new ImageSpan(drawable, imageUri.toString(), ImageSpan.ALIGN_BASELINE);
             text.insert(position, " "); // 이미지 자리 확보
             text.setSpan(imageSpan, position, position + 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
 

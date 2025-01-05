@@ -173,14 +173,16 @@ public class MyExistTextActivity extends AppCompatActivity {
         contentEditText.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-                // 백스페이스 전 상태에서 이미지 스팬 감지
-                if (count > after) {
+                // 삭제(백스페이스) 동작일 때만 이미지 스팬을 감지
+                if (count > 0 && after == 0) {
                     ImageSpan[] spans = ((Editable) s).getSpans(start, start + count, ImageSpan.class);
                     if (spans.length > 0) {
-                        deletedImageSpan = spans[0]; // 삭제된 이미지 스팬 저장
+                        deletedImageSpan = spans[0];
                     } else {
                         deletedImageSpan = null;
                     }
+                } else {
+                    deletedImageSpan = null;
                 }
             }
 
@@ -199,14 +201,21 @@ public class MyExistTextActivity extends AppCompatActivity {
                 }
 
                 if (!isUndoRedoAction && !isInitialAccess) {
-                    // UndoRedoManager에 현재 상태 저장
-                    undoRedoManager.saveState(new UndoRedoManager.State(
-                            new SpannableString(s),
-                            new ArrayList<>(curImageUris),
-                            new ArrayList<>(curImageNames),
-                            new ArrayList<>(curImagePositions)
-                    ));
-                    updateUndoRedoButtons();
+                    // 이전 상태의 텍스트와 현재 텍스트 비교
+                    CharSequence currentStateText = undoRedoManager.getCurrentStateText();
+                    SpannableString newText = new SpannableString(s);
+
+                    if ((currentStateText == null || !currentStateText.toString().equals(newText.toString()))) {
+                        // UndoRedoManager에 현재 상태 저장
+                        undoRedoManager.saveState(new UndoRedoManager.State(
+                                newText,
+                                new ArrayList<>(curImageUris),
+                                new ArrayList<>(curImageNames),
+                                new ArrayList<>(curImagePositions),
+                                contentEditText.getSelectionStart()
+                        ));
+                        updateUndoRedoButtons();
+                    }
                 }
             }
         });
