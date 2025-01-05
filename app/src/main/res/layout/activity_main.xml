@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true"> <!-- 전체 화면을 차지하도록 설정 -->
+    android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -11,7 +11,7 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- 첫 번째 공간 (클릭 가능한 공간) -->
+        <!-- 첫 번째 공간 (변경 없음) -->
         <FrameLayout
             android:id="@+id/first_section"
             android:layout_width="match_parent"
@@ -19,8 +19,7 @@
             android:background="@drawable/bg_shape"
             android:clickable="true"
             android:focusable="true"
-            android:contentDescription="싸피 소식"
-            android:layout_marginBottom="10dp"/>
+            android:layout_marginBottom="10dp" />
 
         <!-- 두 번째 공간 (캘린더) -->
         <LinearLayout
@@ -29,11 +28,11 @@
             android:orientation="vertical"
             android:layout_marginBottom="10dp">
 
+            <!-- 캘린더 제목과 버튼 (기존 그대로) -->
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
-                <!-- 캘린더 제목 -->
                 <TextView
                     android:id="@+id/calendar_title"
                     android:layout_width="wrap_content"
@@ -43,44 +42,103 @@
                     android:textStyle="bold"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent"
-                    app:layout_constraintBottom_toBottomOf="parent"/>
+                    app:layout_constraintBottom_toBottomOf="parent" />
 
-                <!-- 이동하기 버튼 -->
                 <TextView
                     android:id="@+id/calendar_button"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:clickable="true"
                     android:text="이동하기"
                     android:textColor="#007AFF"
                     android:padding="8dp"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintTop_toTopOf="parent"
-                    app:layout_constraintBottom_toBottomOf="parent"/>
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    android:clickable="true" />
             </androidx.constraintlayout.widget.ConstraintLayout>
 
-            <!-- 캘린더 뷰 추가 -->
-            <FrameLayout
-                android:id="@+id/second_section"
+            <!-- ConstraintLayout으로 퍼센트 지정 -->
+            <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
-                android:layout_height="200dp"
+                android:layout_height="wrap_content"
                 android:background="@drawable/bg_shape"
                 android:layout_marginTop="8dp">
 
-                <!-- CalendarView를 공간 절반 정도 크기로 설정 -->
-                <CalendarView
-                    android:id="@+id/calendar_view"
-                    android:layout_width="200dp"
-                    android:layout_height="190dp"
-                    android:layout_gravity="center"
-                    android:layout_margin="8dp"
-                    android:layout_weight="1"
-                    android:maxHeight="250dp"
-                    android:minHeight="150dp" />
-            </FrameLayout>
+                <!-- 왼쪽(캘린더) 영역: width_percent="0.6" (기존 동일) -->
+                <LinearLayout
+                    android:id="@+id/calendar_container"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="8dp"
+                    app:layout_constraintWidth_percent="0.6"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent">
+
+                    <TextView
+                        android:id="@+id/month_year_text"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:gravity="center"
+                        android:layout_marginBottom="8dp"
+                        android:text="연/월" />
+
+                    <GridLayout
+                        android:id="@+id/custom_calendar"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"
+                        android:columnCount="7" />
+                </LinearLayout>
+
+                <!-- 오른쪽(스케줄) 부분만 레이아웃 수정 -->
+                <LinearLayout
+                    android:id="@+id/schedule_list_container"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:orientation="vertical"
+                    android:padding="8dp"
+
+                    app:layout_constraintWidth_percent="0.4"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent">
+
+                    <!-- (1) 상단 날짜 텍스트 (고정) -->
+                    <TextView
+                        android:id="@+id/schedule_header"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="8dp"
+                        android:gravity="center"
+                        android:text="오늘 날짜" />
+
+                    <!-- (2) 아래쪽 스크롤 영역 -->
+                    <ScrollView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:fillViewport="true">
+
+                        <LinearLayout
+                            android:id="@+id/schedule_content_area"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical">
+
+                            <!-- 향후 일정 목록(동적 추가) 가능 -->
+                        </LinearLayout>
+                    </ScrollView>
+                </LinearLayout>
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
         </LinearLayout>
 
-        <!-- 세 번째 공간 (다이어리) -->
+        <!-- 세 번째 공간 (다이어리) (변경 없음) -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -91,7 +149,6 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
-                <!-- 다이어리 제목 -->
                 <TextView
                     android:id="@+id/diary_title"
                     android:layout_width="wrap_content"
@@ -103,7 +160,6 @@
                     app:layout_constraintTop_toTopOf="parent"
                     app:layout_constraintBottom_toBottomOf="parent"/>
 
-                <!-- 이동하기 버튼 -->
                 <TextView
                     android:id="@+id/diary_button"
                     android:layout_width="wrap_content"
@@ -125,7 +181,7 @@
                 android:layout_marginTop="8dp"/>
         </LinearLayout>
 
-        <!-- 네 번째 공간 (채용 공고) -->
+        <!-- 네 번째 공간 (채용 공고) (변경 없음) -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -136,7 +192,6 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
-                <!-- 채용 공고 제목 -->
                 <TextView
                     android:id="@+id/recruit_title"
                     android:layout_width="wrap_content"
@@ -148,7 +203,6 @@
                     app:layout_constraintTop_toTopOf="parent"
                     app:layout_constraintBottom_toBottomOf="parent"/>
 
-                <!-- 이동하기 버튼 -->
                 <TextView
                     android:id="@+id/recruit_button"
                     android:layout_width="wrap_content"
@@ -162,7 +216,6 @@
                     app:layout_constraintBottom_toBottomOf="parent"/>
             </androidx.constraintlayout.widget.ConstraintLayout>
 
-            <!-- 채용 공고 ViewPager2 -->
             <androidx.viewpager2.widget.ViewPager2
                 android:id="@+id/recruit_view_pager"
                 android:layout_width="match_parent"
