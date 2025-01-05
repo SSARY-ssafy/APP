@@ -52,6 +52,7 @@ import com.google.firebase.storage.StorageReference;
 import java.net.URL;
 import java.text.BreakIterator;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -90,7 +91,6 @@ public class MyExistTextActivity extends AppCompatActivity {
     private final List<Uri> updatedImageUris = new ArrayList<>();
     private final List<String> updatedImageNames = new ArrayList<>();
     private final List<Integer> updatedImagePositions = new ArrayList<>();
-
 
     private final List<Uri> existedFileUris = new ArrayList<>();
     private final List<String> existedFileExtensions = new ArrayList<>();
@@ -312,24 +312,27 @@ public class MyExistTextActivity extends AppCompatActivity {
 
     // 이미지 삭제 대화상자 표시 메서드
     private void showDeleteImageDialog(Uri imageUri) {
-        new AlertDialog.Builder(this)
+        AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("이미지 삭제")
                 .setMessage("해당 이미지를 삭제하시겠습니까?")
-                .setPositiveButton("삭제", (dialog, which) -> deleteImage(imageUri))
-                .setNegativeButton("취소", (dialog, which) -> {
-                    // 취소 시 즉시 undo 실행
+                .setPositiveButton("삭제", (dialogInterface, which) -> deleteImage(imageUri))
+                .setNegativeButton("취소", (dialogInterface, which) -> {
                     if (undoRedoManager.canUndo()) {
                         isUndoRedoAction = true;
                         UndoRedoManager.State previousState = undoRedoManager.undo();
-
-                        // 상태 복원
                         restoreState(previousState);
-
                         isUndoRedoAction = false;
                     }
                     updateUndoRedoButtons();
                 })
-                .show();
+                .create();
+
+        // 다이얼로그가 외부 터치나 뒤로가기 버튼으로 닫히지 않도록 설정
+        dialog.setCancelable(false);
+        dialog.setCanceledOnTouchOutside(false);
+
+        // 다이얼로그 표시
+        dialog.show();
     }
 
     private void deleteImage(Uri imageUri) {
