@@ -379,7 +379,7 @@ public class MyExistTextActivity extends AppCompatActivity {
             Editable text = contentEditText.getText();
 
             // 객체 치환 문자 삽입
-            text.insert(position, "\uFFFC");
+            text.insert(position, " ");
             ImageSpan imageSpan = new ImageSpan(drawable, imageUri.toString(), ImageSpan.ALIGN_BASELINE);
             text.setSpan(imageSpan, position, position + 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
 
@@ -1248,25 +1248,28 @@ public class MyExistTextActivity extends AppCompatActivity {
         int currentIndex = 0; // 텍스트의 현재 위치
         int imageIndex = 0;   // 이미지 데이터의 현재 인덱스
 
-        while (currentIndex < text.length() || imageIndex < imageData.size()) {
-            if (imageIndex < imageData.size()) {
-                // 텍스트에서 객체 치환 문자("\uFFFC")를 찾음
-                if (currentIndex < text.length() && text.charAt(currentIndex) == '\uFFFC') {
-                    // 이미지 URL 삽입
+        ImageSpan[] imageSpans = text.getSpans(0, text.length(), ImageSpan.class);
+
+        while (currentIndex < text.length()) {
+            boolean imageProcessed = false;
+
+            for (ImageSpan imageSpan : imageSpans) {
+                int start = text.getSpanStart(imageSpan);
+                int end = text.getSpanEnd(imageSpan);
+
+                if (currentIndex == start) {
                     String imageUrl = imageData.get(imageIndex).get("imageUrl");
-                    if (imageUrl != null && !imageUrl.isEmpty()) {
+                    if (imageUrl != null) {
                         htmlContent.append("<img src=\"").append(imageUrl).append("\" />");
                     }
-
-                    // 다음 이미지로 이동
+                    currentIndex = end;
                     imageIndex++;
-                    currentIndex++;
-                    continue;
+                    imageProcessed = true;
+                    break;
                 }
             }
 
-            // 일반 텍스트 처리
-            if (currentIndex < text.length()) {
+            if (!imageProcessed) {
                 char ch = text.charAt(currentIndex++);
                 if (ch == '\n') {
                     htmlContent.append("<br>");
