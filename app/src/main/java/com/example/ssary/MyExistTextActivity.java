@@ -191,10 +191,11 @@ public class MyExistTextActivity extends AppCompatActivity {
             public void afterTextChanged(Editable s) {
                 updateImagePositions(s);
 
-                if (deletedImageSpan != null) {
+                // Undo/Redo 중이 아니고 이미지 삭제 액션일 때만 다이얼로그 호출
+                if (deletedImageSpan != null && !isUndoRedoAction) {
                     Uri imageUri = Uri.parse(deletedImageSpan.getSource());
                     showDeleteImageDialog(imageUri);
-                    deletedImageSpan = null; // 초기화
+                    deletedImageSpan = null;
                 }
 
                 if (!isUndoRedoAction && !isInitialAccess) {
