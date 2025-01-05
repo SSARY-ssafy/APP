@@ -404,7 +404,8 @@ public class MyExistTextActivity extends AppCompatActivity {
                     new SpannableString(contentEditText.getText()),
                     curImageUris,
                     curImageNames,
-                    curImagePositions
+                    curImagePositions,
+                    contentEditText.getSelectionStart()
             ));
 
             updateUndoRedoButtons();
@@ -432,7 +433,7 @@ public class MyExistTextActivity extends AppCompatActivity {
         manageDeletedAndExistedImages(state);
 
         // 커서 위치 조정
-        contentEditText.setSelection(state.text.length());
+        contentEditText.setSelection(state.cursorPosition);
     }
 
     // Undo & Redo 시, 이미지 삭제 및 추가 메서드
@@ -704,7 +705,8 @@ public class MyExistTextActivity extends AppCompatActivity {
                     (Spannable) styledText,
                     curImageUris,
                     curImageNames,
-                    curImagePositions
+                    curImagePositions,
+                    contentEditText.getSelectionStart()
             ));
         } else {
             Spannable spannableText = new SpannableString(styledText);
@@ -712,7 +714,8 @@ public class MyExistTextActivity extends AppCompatActivity {
                     spannableText,
                     curImageUris,
                     curImageNames,
-                    curImagePositions
+                    curImagePositions,
+                    contentEditText.getSelectionStart()
             ));
         }
 

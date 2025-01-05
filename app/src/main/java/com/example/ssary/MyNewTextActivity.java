@@ -302,7 +302,8 @@ public class MyNewTextActivity extends AppCompatActivity {
                 new SpannableString(""),
                 imageUris,
                 imageNames,
-                imagePositions
+                imagePositions,
+                contentEditText.getSelectionStart()
         ));
 
         updateUndoRedoButtons(); // 초기 버튼 상태 업데이트
@@ -356,7 +357,8 @@ public class MyNewTextActivity extends AppCompatActivity {
                     new SpannableString(contentEditText.getText()),
                     imageUris,
                     imageNames,
-                    imagePositions
+                    imagePositions,
+                    contentEditText.getSelectionStart()
             ));
 
             updateUndoRedoButtons();

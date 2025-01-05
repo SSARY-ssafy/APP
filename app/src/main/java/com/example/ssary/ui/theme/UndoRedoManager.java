@@ -2,6 +2,8 @@ package com.example.ssary.ui.theme;
 
 import android.net.Uri;
 import android.text.Spannable;
+import android.text.SpannableString;
+import android.text.SpannableStringBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,12 +16,14 @@ public class UndoRedoManager {
         public List<Uri> imageUris;
         public List<String> imageNames;
         public List<Integer> imagePositions;
+        public int cursorPosition;
 
-        public State(Spannable text, List<Uri> imageUris, List<String> imageNames, List<Integer> imagePositions) {
+        public State(Spannable text, List<Uri> imageUris, List<String> imageNames, List<Integer> imagePositions, int cursorPosition) {
             this.text = text;
             this.imageUris = new ArrayList<>(imageUris);
             this.imageNames = new ArrayList<>(imageNames);
             this.imagePositions = new ArrayList<>(imagePositions);
+            this.cursorPosition = cursorPosition;
         }
 
         @Override
@@ -77,6 +81,14 @@ public class UndoRedoManager {
         return nextState; // 다음 상태 반환
     }
 
+    public CharSequence getCurrentStateText() {
+        if (!undoStack.isEmpty()) {
+            if (undoStack.peek().text instanceof SpannableStringBuilder) {
+                return undoStack.peek().text;
+            } else {
+                return (SpannableString) undoStack.peek().text;
+            }
+        }
+        return null;
+    }
 }
-
-
