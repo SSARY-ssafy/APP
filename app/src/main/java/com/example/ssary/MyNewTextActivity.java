@@ -130,6 +130,14 @@ public class MyNewTextActivity extends AppCompatActivity {
 
             @Override
             public void afterTextChanged(Editable s) {
+                updateImagePositions(s);
+
+                // Undo/Redo 중이 아니고 이미지 삭제 액션일 때만 다이얼로그 호출
+                if (deletedImageSpan != null && !isUndoRedoAction) {
+                    Uri imageUri = Uri.parse(deletedImageSpan.getSource());
+                    showDeleteImageDialog(imageUri);
+                    deletedImageSpan = null;
+                }
                 if (!isUndoRedoAction) {
                     // UndoRedoManager에 현재 상태 저장
                     undoRedoManager.saveState(new UndoRedoManager.State(
@@ -175,6 +183,39 @@ public class MyNewTextActivity extends AppCompatActivity {
         updateUndoRedoButtons();
     }
 
+    // 이미지 삭제 대화상자 표시 메서드
+    private void showDeleteImageDialog(Uri imageUri) {
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("이미지 삭제")
+                .setMessage("해당 이미지를 삭제하시겠습니까?")
+                .setPositiveButton("삭제", (dialogInterface, which) -> deleteImage(imageUri))
+                .setNegativeButton("취소", (dialogInterface, which) -> {
+                    if (undoRedoManager.canUndo()) {
+                        isUndoRedoAction = true;
+                        UndoRedoManager.State previousState = undoRedoManager.undo();
+                        restoreState(previousState);
+                        isUndoRedoAction = false;
+                    }
+                    updateUndoRedoButtons();
+                })
+                .create();
+
+        // 다이얼로그가 외부 터치나 뒤로가기 버튼으로 닫히지 않도록 설정
+        dialog.setCancelable(false);
+        dialog.setCanceledOnTouchOutside(false);
+
+        // 다이얼로그 표시
+        dialog.show();
+    }
+
+    private void deleteImage(Uri imageUri) {
+        int index = imageUris.indexOf(imageUri);
+        if (index != -1) {
+            imageUris.remove(index);
+            imageNames.remove(index);
+            imagePositions.remove(index);
+        }
+    }
     private void submitPost() {
         String postTitle = titleEditText.getText().toString().trim();
         String postContent = contentEditText.getText().toString().trim();
