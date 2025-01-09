@@ -52,6 +52,7 @@ import com.google.firebase.storage.StorageReference;
 import java.net.URL;
 import java.text.BreakIterator;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -90,7 +91,6 @@ public class MyExistTextActivity extends AppCompatActivity {
     private final List<Uri> updatedImageUris = new ArrayList<>();
     private final List<String> updatedImageNames = new ArrayList<>();
     private final List<Integer> updatedImagePositions = new ArrayList<>();
-
 
     private final List<Uri> existedFileUris = new ArrayList<>();
     private final List<String> existedFileExtensions = new ArrayList<>();
@@ -173,14 +173,16 @@ public class MyExistTextActivity extends AppCompatActivity {
         contentEditText.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-                // 백스페이스 전 상태에서 이미지 스팬 감지
-                if (count > after) {
+                // 삭제(백스페이스) 동작일 때만 이미지 스팬을 감지
+                if (count > 0 && after == 0) {
                     ImageSpan[] spans = ((Editable) s).getSpans(start, start + count, ImageSpan.class);
                     if (spans.length > 0) {
-                        deletedImageSpan = spans[0]; // 삭제된 이미지 스팬 저장
+                        deletedImageSpan = spans[0];
                     } else {
                         deletedImageSpan = null;
                     }
+                } else {
+                    deletedImageSpan = null;
                 }
             }
 
@@ -191,21 +193,29 @@ public class MyExistTextActivity extends AppCompatActivity {
             public void afterTextChanged(Editable s) {
                 updateImagePositions(s);
 
-                if (deletedImageSpan != null) {
+                // Undo/Redo 중이 아니고 이미지 삭제 액션일 때만 다이얼로그 호출
+                if (deletedImageSpan != null && !isUndoRedoAction) {
                     Uri imageUri = Uri.parse(deletedImageSpan.getSource());
                     showDeleteImageDialog(imageUri);
-                    deletedImageSpan = null; // 초기화
+                    deletedImageSpan = null;
                 }
 
                 if (!isUndoRedoAction && !isInitialAccess) {
-                    // UndoRedoManager에 현재 상태 저장
-                    undoRedoManager.saveState(new UndoRedoManager.State(
-                            new SpannableString(s),
-                            new ArrayList<>(curImageUris),
-                            new ArrayList<>(curImageNames),
-                            new ArrayList<>(curImagePositions)
-                    ));
-                    updateUndoRedoButtons();
+                    // 이전 상태의 텍스트와 현재 텍스트 비교
+                    CharSequence currentStateText = undoRedoManager.getCurrentStateText();
+                    SpannableString newText = new SpannableString(s);
+
+                    if ((currentStateText == null || !currentStateText.toString().equals(newText.toString()))) {
+                        // UndoRedoManager에 현재 상태 저장
+                        undoRedoManager.saveState(new UndoRedoManager.State(
+                                newText,
+                                new ArrayList<>(curImageUris),
+                                new ArrayList<>(curImageNames),
+                                new ArrayList<>(curImagePositions),
+                                contentEditText.getSelectionStart()
+                        ));
+                        updateUndoRedoButtons();
+                    }
                 }
             }
         });
@@ -302,24 +312,27 @@ public class MyExistTextActivity extends AppCompatActivity {
 
     // 이미지 삭제 대화상자 표시 메서드
     private void showDeleteImageDialog(Uri imageUri) {
-        new AlertDialog.Builder(this)
+        AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("이미지 삭제")
                 .setMessage("해당 이미지를 삭제하시겠습니까?")
-                .setPositiveButton("삭제", (dialog, which) -> deleteImage(imageUri))
-                .setNegativeButton("취소", (dialog, which) -> {
-                    // 취소 시 즉시 undo 실행
+                .setPositiveButton("삭제", (dialogInterface, which) -> deleteImage(imageUri))
+                .setNegativeButton("취소", (dialogInterface, which) -> {
                     if (undoRedoManager.canUndo()) {
                         isUndoRedoAction = true;
                         UndoRedoManager.State previousState = undoRedoManager.undo();
-
-                        // 상태 복원
                         restoreState(previousState);
-
                         isUndoRedoAction = false;
                     }
                     updateUndoRedoButtons();
                 })
-                .show();
+                .create();
+
+        // 다이얼로그가 외부 터치나 뒤로가기 버튼으로 닫히지 않도록 설정
+        dialog.setCancelable(false);
+        dialog.setCanceledOnTouchOutside(false);
+
+        // 다이얼로그 표시
+        dialog.show();
     }
 
     private void deleteImage(Uri imageUri) {
@@ -378,7 +391,7 @@ public class MyExistTextActivity extends AppCompatActivity {
             Editable text = contentEditText.getText();
 
             // 객체 치환 문자 삽입
-            text.insert(position, "\uFFFC");
+            text.insert(position, " ");
             ImageSpan imageSpan = new ImageSpan(drawable, imageUri.toString(), ImageSpan.ALIGN_BASELINE);
             text.setSpan(imageSpan, position, position + 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
 
@@ -403,7 +416,8 @@ public class MyExistTextActivity extends AppCompatActivity {
                     new SpannableString(contentEditText.getText()),
                     curImageUris,
                     curImageNames,
-                    curImagePositions
+                    curImagePositions,
+                    contentEditText.getSelectionStart()
             ));
 
             updateUndoRedoButtons();
@@ -431,7 +445,7 @@ public class MyExistTextActivity extends AppCompatActivity {
         manageDeletedAndExistedImages(state);
 
         // 커서 위치 조정
-        contentEditText.setSelection(state.text.length());
+        contentEditText.setSelection(state.cursorPosition);
     }
 
     // Undo & Redo 시, 이미지 삭제 및 추가 메서드
@@ -703,7 +717,8 @@ public class MyExistTextActivity extends AppCompatActivity {
                     (Spannable) styledText,
                     curImageUris,
                     curImageNames,
-                    curImagePositions
+                    curImagePositions,
+                    contentEditText.getSelectionStart()
             ));
         } else {
             Spannable spannableText = new SpannableString(styledText);
@@ -711,7 +726,8 @@ public class MyExistTextActivity extends AppCompatActivity {
                     spannableText,
                     curImageUris,
                     curImageNames,
-                    curImagePositions
+                    curImagePositions,
+                    contentEditText.getSelectionStart()
             ));
         }
 
@@ -1247,25 +1263,28 @@ public class MyExistTextActivity extends AppCompatActivity {
         int currentIndex = 0; // 텍스트의 현재 위치
         int imageIndex = 0;   // 이미지 데이터의 현재 인덱스
 
-        while (currentIndex < text.length() || imageIndex < imageData.size()) {
-            if (imageIndex < imageData.size()) {
-                // 텍스트에서 객체 치환 문자("\uFFFC")를 찾음
-                if (currentIndex < text.length() && text.charAt(currentIndex) == '\uFFFC') {
-                    // 이미지 URL 삽입
+        ImageSpan[] imageSpans = text.getSpans(0, text.length(), ImageSpan.class);
+
+        while (currentIndex < text.length()) {
+            boolean imageProcessed = false;
+
+            for (ImageSpan imageSpan : imageSpans) {
+                int start = text.getSpanStart(imageSpan);
+                int end = text.getSpanEnd(imageSpan);
+
+                if (currentIndex == start) {
                     String imageUrl = imageData.get(imageIndex).get("imageUrl");
-                    if (imageUrl != null && !imageUrl.isEmpty()) {
+                    if (imageUrl != null) {
                         htmlContent.append("<img src=\"").append(imageUrl).append("\" />");
                     }
-
-                    // 다음 이미지로 이동
+                    currentIndex = end;
                     imageIndex++;
-                    currentIndex++;
-                    continue;
+                    imageProcessed = true;
+                    break;
                 }
             }
 
-            // 일반 텍스트 처리
-            if (currentIndex < text.length()) {
+            if (!imageProcessed) {
                 char ch = text.charAt(currentIndex++);
                 if (ch == '\n') {
                     htmlContent.append("<br>");

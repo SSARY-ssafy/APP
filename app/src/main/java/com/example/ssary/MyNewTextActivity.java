@@ -71,6 +71,8 @@ public class MyNewTextActivity extends AppCompatActivity {
 
     private boolean isUndoRedoAction = false;
     private boolean isBold = false, isItalic = false, isUnderline = false, isStrikethrough = false;
+    private ImageSpan deletedImageSpan;
+    private boolean isImageInsertionInProgress = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -111,7 +113,6 @@ public class MyNewTextActivity extends AppCompatActivity {
             categorySpinner.setSelection(categoryList.indexOf(selectedCategory));
         }
 
-
         submitPostButton.setOnClickListener(v -> submitPost());
         uploadFileButton.setOnClickListener(v -> selectFiles());
 
@@ -121,7 +122,17 @@ public class MyNewTextActivity extends AppCompatActivity {
         // 텍스트 변경 이벤트 처리
         contentEditText.addTextChangedListener(new TextWatcher() {
             @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                // 백스페이스 전 상태에서 이미지 스팬 감지
+                if (count > after) {
+                    ImageSpan[] spans = ((Editable) s).getSpans(start, start + count, ImageSpan.class);
+                    if (spans.length > 0) {
+                        deletedImageSpan = spans[0]; // 삭제된 이미지 스팬 저장
+                    } else {
+                        deletedImageSpan = null;
+                    }
+                }
+            }
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
@@ -130,15 +141,31 @@ public class MyNewTextActivity extends AppCompatActivity {
 
             @Override
             public void afterTextChanged(Editable s) {
+                updateImagePositions(s);
+
+                // Undo/Redo 중이 아니고 이미지 삭제 액션일 때만 다이얼로그 호출
+                if (deletedImageSpan != null && !isUndoRedoAction) {
+                    Uri imageUri = Uri.parse(deletedImageSpan.getSource());
+                    showDeleteImageDialog(imageUri);
+                    deletedImageSpan = null;
+                }
+
                 if (!isUndoRedoAction) {
-                    // UndoRedoManager에 현재 상태 저장
-                    undoRedoManager.saveState(new UndoRedoManager.State(
-                            new SpannableString(s),
-                            new ArrayList<>(imageUris),
-                            new ArrayList<>(imageNames),
-                            new ArrayList<>(imagePositions)
-                    ));
-                    updateUndoRedoButtons(); // 버튼 활성화 상태 업데이트
+                    // 이전 상태의 텍스트와 현재 텍스트 비교
+                    CharSequence currentStateText = undoRedoManager.getCurrentStateText();
+                    SpannableString newText = new SpannableString(s);
+
+                    if ((currentStateText == null || !currentStateText.toString().equals(newText.toString()))) {
+                        // UndoRedoManager에 현재 상태 저장
+                        undoRedoManager.saveState(new UndoRedoManager.State(
+                                newText,
+                                new ArrayList<>(imageUris),
+                                new ArrayList<>(imageNames),
+                                new ArrayList<>(imagePositions),
+                                contentEditText.getSelectionStart()
+                        ));
+                        updateUndoRedoButtons();
+                    }
                 }
             }
         });
@@ -173,6 +200,77 @@ public class MyNewTextActivity extends AppCompatActivity {
 
         // 버튼 초기 상태 설정
         updateUndoRedoButtons();
+    }
+
+    private void updateImagePositions(Editable text) {
+        if (isImageInsertionInProgress) return;  // 이미지 삽입 중이면 업데이트 중단
+
+        // 모든 ImageSpan 탐색
+        ImageSpan[] spans = text.getSpans(0, text.length(), ImageSpan.class);
+
+        // 새로 탐색한 이미지 정보 임시 저장
+        List<Integer> newImagePositions = new ArrayList<>();
+        List<Uri> newImageUris = new ArrayList<>();
+        List<String> newImageNames = new ArrayList<>();
+
+        for (ImageSpan span : spans) {
+            String source = span.getSource();
+            if (source == null) continue;
+
+            int start = text.getSpanStart(span);
+            Uri imageUri = Uri.parse(source);
+
+            if (imageUris.contains(imageUri)) {
+                int index = imageUris.indexOf(imageUri);
+                if (index != -1) {
+                    newImagePositions.add(start);
+                    newImageUris.add(imageUris.get(index));
+                    newImageNames.add(imageNames.get(index));
+                }
+            }
+        }
+
+        // 기존 이미지 정보 업데이트
+        imagePositions.clear();
+        imageUris.clear();
+        imageNames.clear();
+        imagePositions.addAll(newImagePositions);
+        imageUris.addAll(newImageUris);
+        imageNames.addAll(newImageNames);
+    }
+
+    // 이미지 삭제 대화상자 표시 메서드
+    private void showDeleteImageDialog(Uri imageUri) {
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("이미지 삭제")
+                .setMessage("해당 이미지를 삭제하시겠습니까?")
+                .setPositiveButton("삭제", (dialogInterface, which) -> deleteImage(imageUri))
+                .setNegativeButton("취소", (dialogInterface, which) -> {
+                    if (undoRedoManager.canUndo()) {
+                        isUndoRedoAction = true;
+                        UndoRedoManager.State previousState = undoRedoManager.undo();
+                        restoreState(previousState);
+                        isUndoRedoAction = false;
+                    }
+                    updateUndoRedoButtons();
+                })
+                .create();
+
+        // 다이얼로그가 외부 터치나 뒤로가기 버튼으로 닫히지 않도록 설정
+        dialog.setCancelable(false);
+        dialog.setCanceledOnTouchOutside(false);
+
+        // 다이얼로그 표시
+        dialog.show();
+    }
+
+    private void deleteImage(Uri imageUri) {
+        int index = imageUris.indexOf(imageUri);
+        if (index != -1) {
+            imageUris.remove(index);
+            imageNames.remove(index);
+            imagePositions.remove(index);
+        }
     }
 
     private void submitPost() {
@@ -216,17 +314,13 @@ public class MyNewTextActivity extends AppCompatActivity {
         imageNames.addAll(initialImageNames);
         imagePositions.addAll(initialImagePositions);
 
-        // 이미지를 텍스트에 삽입
-        for (int i = 0; i < imageUris.size(); i++) {
-            insertImageAtPosition(imageUris.get(i), imagePositions.get(i));
-        }
-
         // UndoRedoManager에 초기 상태 저장
         undoRedoManager.saveState(new UndoRedoManager.State(
                 new SpannableString(""),
                 imageUris,
                 imageNames,
-                imagePositions
+                imagePositions,
+                contentEditText.getSelectionStart()
         ));
 
         updateUndoRedoButtons(); // 초기 버튼 상태 업데이트
@@ -254,6 +348,8 @@ public class MyNewTextActivity extends AppCompatActivity {
     // 선택한 이미지를 contentEditText의 현재 커서 위치에 삽입
     private void insertImageAtCursor(Uri imageUri) {
         try {
+            isImageInsertionInProgress = true;  // 이미지 삽입 시작 플래그 설정
+
             Drawable drawable = Drawable.createFromStream(
                     getContentResolver().openInputStream(imageUri),
                     null
@@ -264,7 +360,7 @@ public class MyNewTextActivity extends AppCompatActivity {
             // 커서 위치에 이미지 추가
             int position = contentEditText.getSelectionEnd();
             Editable text = contentEditText.getText();
-            ImageSpan imageSpan = new ImageSpan(drawable, ImageSpan.ALIGN_BASELINE);
+            ImageSpan imageSpan = new ImageSpan(drawable, imageUri.toString(), ImageSpan.ALIGN_BASELINE);
             text.insert(position, " "); // 이미지 자리 확보
             text.setSpan(imageSpan, position, position + 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
 
@@ -278,12 +374,15 @@ public class MyNewTextActivity extends AppCompatActivity {
                     new SpannableString(contentEditText.getText()),
                     imageUris,
                     imageNames,
-                    imagePositions
+                    imagePositions,
+                    contentEditText.getSelectionStart()
             ));
 
             updateUndoRedoButtons();
         } catch (Exception e) {
             Toast.makeText(this, "이미지를 삽입할 수 없습니다.", Toast.LENGTH_SHORT).show();
+        } finally {
+            isImageInsertionInProgress = false;  // 이미지 삽입 종료 플래그 설정
         }
     }
 
@@ -300,34 +399,9 @@ public class MyNewTextActivity extends AppCompatActivity {
         imageNames.addAll(state.imageNames);
         imagePositions.addAll(state.imagePositions);
 
-        // UI에서 이미지 재삽입
-        for (int i = 0; i < imageUris.size(); i++) {
-            insertImageAtPosition(imageUris.get(i), imagePositions.get(i));
-        }
-
         // 커서 위치 조정
-        contentEditText.setSelection(state.text.length());
+        contentEditText.setSelection(state.cursorPosition);
     }
-
-
-    private void insertImageAtPosition(Uri imageUri, int position) {
-        try {
-            Drawable drawable = Drawable.createFromStream(
-                    getContentResolver().openInputStream(imageUri),
-                    null
-            );
-            assert drawable != null;
-            drawable.setBounds(0, 0, drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight());
-
-            Editable text = contentEditText.getText();
-            ImageSpan imageSpan = new ImageSpan(drawable, ImageSpan.ALIGN_BASELINE);
-            text.insert(position, " "); // 이미지 자리 확보
-            text.setSpan(imageSpan, position, position + 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-        } catch (Exception e) {
-            Toast.makeText(this, "이미지를 복원할 수 없습니다.", Toast.LENGTH_SHORT).show();
-        }
-    }
-
 
     // DB로 부터 카테고리 목록을 가져오는 메서드
     private void loadCategoriesFromDB() {
@@ -408,6 +482,8 @@ public class MyNewTextActivity extends AppCompatActivity {
     }
 
     private void uploadImagesToStorage(String category, String title) {
+        updateImagePositions(contentEditText.getText());
+
         int totalImages = imageUris.size();
 
         for (int i = 0; i < totalImages; i++) {
